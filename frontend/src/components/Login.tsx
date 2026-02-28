@@ -11,21 +11,12 @@ const Login: React.FC = () => {
         setLoading(true);
         setMessage(null);
 
-        const isEmail = identifier.includes('@');
-
-        const payload = {
-            email: isEmail ? identifier : null,
-            user_id: !isEmail ? identifier : null,
-            password: password
-        };
-
         try {
             const response = await fetch('http://localhost:8000/api/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ identifier: identifier.trim(), password }),
             });
 
             const data = await response.json();
@@ -34,8 +25,7 @@ const Login: React.FC = () => {
                 throw new Error(data.detail || 'Ocurrió un error al iniciar sesión');
             }
 
-            setMessage({ type: 'success', text: `¡Bienvenido, ${data.user.nombre || 'Usuario'}!` });
-            console.log('User data:', data.user);
+            setMessage({ type: 'success', text: `¡Sesiada inición, ${data.user.nombre}!` });
 
         } catch (error: any) {
             setMessage({ type: 'error', text: error.message });
