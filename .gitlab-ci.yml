@@ -28,7 +28,7 @@ frontend_unit_tests:
     - echo "Running frontend unit tests"
     - cd frontend
     - npm ci
-    - npm test
+    - npm run test
   only:
     - branches
     - main
