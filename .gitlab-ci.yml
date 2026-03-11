@@ -1,4 +1,5 @@
 stages:
+  - test
   - build
 
 variables:
@@ -6,17 +7,62 @@ variables:
   BACKEND_IMAGE: "$CI_REGISTRY_IMAGE/backend"
   FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/frontend"
 
+# ─── BACKEND ────────────────────────────────────────────────────────────────
+
+test_backend:
+  stage: test
+  image: python:3.12-slim
+  before_script:
+    - pip install poetry
+    - cd backend
+    - poetry install --with dev
+  script:
+    - poetry run pytest tests/ -v
+  only:
+    - main
+    - merge_requests
+    - tags
+
+# ─── FRONTEND ───────────────────────────────────────────────────────────────
+
+lint_frontend:
+  stage: test
+  image: node:22-alpine
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run lint
+  only:
+    - main
+    - merge_requests
+    - tags
+
+test_frontend:
+  stage: test
+  image: node:22-alpine
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run test
+  only:
+    - main
+    - merge_requests
+    - tags
+
+# ─── BUILD ──────────────────────────────────────────────────────────────────
+
 build_backend:
   stage: build
   image: docker:27
   services:
     - docker:dind
   script:
-    - echo "Building backend docker images..."
-    #- docker build -t "epi-devorapp-backend" ./backend
-    #- docker tag epi-devorapp-backend:latest epi-devorapp-backend:$CI_COMMIT_SHORT_SHA
-    #- echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" $CI_REGISTRY --password-stdin
-    #- docker push $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" "$CI_REGISTRY" --password-stdin
+    - docker build -t "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA" -t "$BACKEND_IMAGE:latest" ./backend
+    - docker push "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$BACKEND_IMAGE:latest"
   only:
     - main
     - tags
@@ -27,11 +73,10 @@ build_frontend:
   services:
     - docker:dind
   script:
-    - echo "Building frontend docker image..."
-    #- docker build -t "epi-devorapp-frontend" ./frontend
-    #- docker tag epi-devorapp-frontend:latest epi-devorapp-frontend:$CI_COMMIT_SHORT_SHA
-    #- echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" $CI_REGISTRY --password-stdin
-    #- docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" "$CI_REGISTRY" --password-stdin
+    - docker build -t "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA" -t "$FRONTEND_IMAGE:latest" ./frontend
+    - docker push "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$FRONTEND_IMAGE:latest"
   only:
     - main
     - tags
