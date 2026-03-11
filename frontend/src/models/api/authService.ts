@@ -1,4 +1,4 @@
-import type { LoginResponse, RegisterResponse, User } from '../types/auth';
+import type { LoginResponse, RegisterResponse } from '../types/auth';
 
 const API_URL = 'http://localhost:8000/api';
 
@@ -17,6 +17,30 @@ export const authService = {
         }
 
         return data;
+    },
+
+    logout: async (): Promise<void> => {
+        const response = await fetch(`${API_URL}/logout`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+        if (!response.ok) {
+            throw new Error('Error al cerrar sesión');
+        }
+    },
+
+    getMe: async (): Promise<any> => {
+        const response = await fetch(`${API_URL}/me`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error('No autorizado');
+        }
+
+        return await response.json();
     },
 
     register: async (userData: any): Promise<RegisterResponse> => {
