@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     FIREBASE_API_KEY: str = ""
     FIREBASE_SERVICE_ACCOUNT_PATH: str = "firebase-service-account.json"
 
+    # Google Maps
+    GOOGLE_API_KEY: str = ""
+
     # JWT
     SECRET_KEY: str = os.getenv(
         "SECRET_KEY", "CAMBIA_ESTO_EN_PRODUCCION_usa_openssl_rand_hex_32"

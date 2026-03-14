@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Response, status, Depends
+from typing import Annotated
 from app.models.dtos.auth_dto import LoginRequest, RegisterRequest, PasswordResetRequest
 from app.services import auth_service
 from app.core.config import settings
@@ -27,6 +28,7 @@ def login(login_data: LoginRequest, response: Response):
             "email": user.email,
             "nombre": user.nombre,
             "apellidos": user.apellidos,
+            "ubicacion": user.ubicacion,
         },
     }
 
@@ -40,6 +42,7 @@ def register(data: RegisterRequest):
             "email": user.email,
             "nombre": user.nombre,
             "apellidos": user.apellidos,
+            "ubicacion": user.ubicacion,
         },
     }
 
@@ -49,12 +52,13 @@ def logout(response: Response):
     return {"message": "Sesión cerrada"}
 
 @router.get("/me")
-def get_me(current_user: Usuario = Depends(get_current_user)):
+def get_me(current_user: Annotated[Usuario, Depends(get_current_user)]):
     return {
         "username": current_user.username,
         "email": current_user.email,
         "nombre": current_user.nombre,
         "apellidos": current_user.apellidos,
+        "ubicacion": current_user.ubicacion,
     }
 
 @router.get("/check-verification/{email}")

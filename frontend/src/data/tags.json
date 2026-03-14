@@ -1,0 +1,82 @@
+[
+    {
+        "id": "restaurant",
+        "label": "Restaurante Clásico",
+        "category": "General"
+    },
+    {
+        "id": "fast_food_restaurant",
+        "label": "Comida Rápida",
+        "category": "General"
+    },
+    {
+        "id": "cafe",
+        "label": "Cafetería",
+        "category": "Ambiente"
+    },
+    {
+        "id": "bar",
+        "label": "Bar / Pub",
+        "category": "Ambiente"
+    },
+    {
+        "id": "bakery",
+        "label": "Panadería / Pastelería",
+        "category": "Ambiente"
+    },
+    {
+        "id": "mexican_restaurant",
+        "label": "Mexicana",
+        "category": "Cocina"
+    },
+    {
+        "id": "italian_restaurant",
+        "label": "Italiana",
+        "category": "Cocina"
+    },
+    {
+        "id": "chinese_restaurant",
+        "label": "China",
+        "category": "Cocina"
+    },
+    {
+        "id": "japanese_restaurant",
+        "label": "Japonesa",
+        "category": "Cocina"
+    },
+    {
+        "id": "sushi_restaurant",
+        "label": "Sushi",
+        "category": "Cocina"
+    },
+    {
+        "id": "pizza_restaurant",
+        "label": "Pizza",
+        "category": "Cocina"
+    },
+    {
+        "id": "hamburger_restaurant",
+        "label": "Hamburguesas",
+        "category": "Cocina"
+    },
+    {
+        "id": "seafood_restaurant",
+        "label": "Mariscos",
+        "category": "Cocina"
+    },
+    {
+        "id": "spanish_restaurant",
+        "label": "Española",
+        "category": "Cocina"
+    },
+    {
+        "id": "vegetarian_restaurant",
+        "label": "Vegetariana",
+        "category": "Dietas Especiales"
+    },
+    {
+        "id": "vegan_restaurant",
+        "label": "Vegana",
+        "category": "Dietas Especiales"
+    }
+]

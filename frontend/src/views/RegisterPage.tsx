@@ -125,10 +125,10 @@ const RegisterPage: React.FC = () => {
                             }
                         }}
                         options={{
-                            types: ["(cities)"],
+                            types: [],
                         }}
                         className="form-control"
-                        placeholder="Escribe una ciudad"
+                        placeholder="Busca tu ubicación"
                         disabled={loading}
                         defaultValue={form.ubicacion}
                     />
