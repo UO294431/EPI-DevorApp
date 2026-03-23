@@ -5,6 +5,8 @@ from app.services import auth_service
 from app.core.config import settings
 from app.core.security import get_current_user
 from app.models.entities.usuarios import Usuario
+from sqlalchemy.orm import Session
+from app.infrastructure.database import get_db
 
 router = APIRouter(prefix="/api", tags=["Auth"])
 
@@ -33,8 +35,18 @@ def login(login_data: LoginRequest, response: Response):
     }
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest):
+def register(data: RegisterRequest, db: Annotated[Session, Depends(get_db)]):
     user = auth_service.register(data)
+    
+    from app.infrastructure.repositories.usuario_repo import get_uid_by_username
+    uid = get_uid_by_username(user.username)
+    if uid:
+        try:
+            from app.services import favoritos_service
+            favoritos_service.create_lista(db, uid, "Favoritos")
+        except Exception as e:
+            print(f"Error creating default favorites list for {user.username}: {e}")
+
     return {
         "message": "Cuenta creada correctamente",
         "user": {

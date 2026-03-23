@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { historialService } from '../models/api/historialService';
+import { favoritosService } from '../models/api/favoritosService';
+import type { FavoritosList } from '../models/api/favoritosService';
 
 interface HistoryEntry {
     id: string;
@@ -24,6 +26,14 @@ const HistoryPage: React.FC = () => {
     const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Estados para Añadir a Favoritos
+    const [isFavModalOpen, setIsFavModalOpen] = useState(false);
+    const [favLists, setFavLists] = useState<FavoritosList[]>([]);
+    const [selectedEntryForFav, setSelectedEntryForFav] = useState<HistoryEntry | null>(null);
+    const [isCreatingList, setIsCreatingList] = useState(false);
+    const [newListName, setNewListName] = useState('Mis Favoritos');
+    const [modalLoading, setModalLoading] = useState(false);
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -60,6 +70,54 @@ const HistoryPage: React.FC = () => {
 
         fetchHistory();
     }, []);
+
+    const handleAddToFavoritesClick = async (entry: HistoryEntry) => {
+        setSelectedEntryForFav(entry);
+        setIsFavModalOpen(true);
+        setModalLoading(true);
+        try {
+            const lists = await favoritosService.getListas();
+            setFavLists(lists);
+            if (lists.length === 0) {
+                setIsCreatingList(true);
+            }
+        } catch (err) {
+            console.error("Error fetching favorite lists:", err);
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    const confirmAddToFavorite = async (listId: number) => {
+        if (!selectedEntryForFav) return;
+        try {
+            setModalLoading(true);
+            await favoritosService.addFavorito(listId, selectedEntryForFav.place_id);
+            alert(`¡${selectedEntryForFav.name} añadido a tus favoritos! ⭐`);
+            setIsFavModalOpen(false);
+        } catch (err: any) {
+            alert("Error: " + err.message);
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    const handleCreateAndAddToList = async () => {
+        if (!selectedEntryForFav || !newListName.trim()) return;
+        try {
+            setModalLoading(true);
+            const newList = await favoritosService.crearLista(newListName.trim());
+            await favoritosService.addFavorito(newList.id, selectedEntryForFav.place_id);
+            alert(`¡Lista "${newListName}" creada y ${selectedEntryForFav.name} añadido! ⭐`);
+            setIsFavModalOpen(false);
+            setIsCreatingList(false);
+            setNewListName('Mis Favoritos');
+        } catch (err: any) {
+            alert("Error: " + err.message);
+        } finally {
+            setModalLoading(false);
+        }
+    };
 
     let content;
     if (loading) {
@@ -292,14 +350,14 @@ const HistoryPage: React.FC = () => {
                                         </button>
                                         <div style={{ display: 'flex', gap: '1rem' }}>
                                             <button
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAddToFavoritesClick(entry);
+                                                }}
                                                 className="btn-secondary"
                                                 style={{
                                                     flex: 1,
                                                     padding: '0.8rem',
-                                                    background: 'var(--surface2)',
-                                                    color: 'var(--text)',
-                                                    border: '1px solid var(--border)',
                                                     borderRadius: 'var(--radius-sm)'
                                                 }}
                                             >
@@ -311,9 +369,6 @@ const HistoryPage: React.FC = () => {
                                                 style={{
                                                     flex: 1,
                                                     padding: '0.8rem',
-                                                    background: 'var(--surface2)',
-                                                    color: 'var(--text)',
-                                                    border: '1px solid var(--border)',
                                                     borderRadius: 'var(--radius-sm)'
                                                 }}
                                             >
@@ -390,6 +445,80 @@ const HistoryPage: React.FC = () => {
                     [data-theme='dark'] .restaurant-card:hover { background: rgba(255,255,255,0.03) !important; }
                 `}</style>
             </div>
+
+            {/* Modal para añadir a favoritos */}
+            {isFavModalOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.4)',
+                    animation: 'fadeIn 0.2s ease'
+                }}>
+                    <div style={{
+                        background: 'var(--surface)', maxWidth: '400px', width: '100%',
+                        borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+                        border: '1px solid var(--border)', overflow: 'hidden', animation: 'scaleUp 0.2s ease'
+                    }}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Añadir a favoritos</h3>
+                            <button onClick={() => setIsFavModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                        </div>
+
+                        <div style={{ padding: '1.5rem' }}>
+                            {modalLoading ? (
+                                <div style={{ textAlign: 'center', padding: '1rem' }}>
+                                    <div className="loading-spinner" style={{ border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', width: '20px', height: '20px', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
+                                </div>
+                            ) : isCreatingList ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0 }}>Crea una nueva lista:</p>
+                                    <input 
+                                        type="text" 
+                                        value={newListName} 
+                                        onChange={(e) => setNewListName(e.target.value)}
+                                        placeholder="Nombre de la lista"
+                                        style={{ width: '100%', padding: '0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button onClick={() => setIsCreatingList(false)} className="btn-secondary" style={{ flex: 1, fontSize: '0.8rem' }}>Atrás</button>
+                                        <button onClick={handleCreateAndAddToList} className="btn-primary" style={{ flex: 2, fontSize: '0.8rem' }}>Crear y Añadir</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>Elige una lista:</p>
+                                    {favLists.map(list => (
+                                        <button 
+                                            key={list.id} 
+                                            onClick={() => confirmAddToFavorite(list.id)}
+                                            style={{
+                                                width: '100%', padding: '1rem', textAlign: 'left',
+                                                background: 'var(--surface2)', border: '1px solid var(--border)',
+                                                borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', gap: '0.8rem',
+                                                transition: 'background 0.2s ease', color: 'var(--text)'
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface3)'}
+                                            onMouseOut={(e) => e.currentTarget.style.background = 'var(--surface2)'}
+                                        >
+                                            <span>📋</span> {list.nombre}
+                                        </button>
+                                    ))}
+                                    <button 
+                                        onClick={() => setIsCreatingList(true)}
+                                        style={{
+                                            width: '100%', padding: '1rem', marginTop: '0.5rem',
+                                            background: 'none', border: '1px dashed var(--accent)',
+                                            color: 'var(--accent)', borderRadius: 'var(--radius-sm)',
+                                            cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
+                                        }}
+                                    >+ Crear nueva lista</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

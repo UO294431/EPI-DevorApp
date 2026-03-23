@@ -14,6 +14,17 @@ vi.mock('../models/api/historialService', () => ({
 
 import { historialService } from '../models/api/historialService';
 
+// ── Mock favoritosService ─────────────────────────────────────────────────────
+vi.mock('../models/api/favoritosService', () => ({
+    favoritosService: {
+        getListas: vi.fn(),
+        addFavorito: vi.fn(),
+        crearLista: vi.fn(),
+    },
+}));
+
+import { favoritosService } from '../models/api/favoritosService';
+
 // Mock de useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -177,5 +188,74 @@ describe('HistoryPage', () => {
 
         expect(historialService.deleteFromHistorial).not.toHaveBeenCalled();
         expect(screen.getByText('Pizza Test')).toBeInTheDocument();
+    });
+
+    it('debe abrir el modal de favoritos y permitir añadir a una lista', async () => {
+        (historialService.getHistorial as ReturnType<typeof vi.fn>).mockResolvedValue(mockHistoryData);
+        (favoritosService.getListas as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 1, user_id: 'user1', nombre: 'Favoritos' }]);
+        (favoritosService.addFavorito as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 10, lista_id: 1, place_id: 'place1' });
+
+        renderHistoryPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Pizza Test')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText('Pizza Test')); // Expandir
+
+        const addFavBtn = await screen.findByRole('button', { name: /Añadir a favoritos/i });
+        fireEvent.click(addFavBtn);
+
+        await waitFor(() => {
+            expect(screen.getByText('Elige una lista:')).toBeInTheDocument();
+        });
+
+        const selectListBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('📋 Favoritos'));
+        if (selectListBtn) fireEvent.click(selectListBtn);
+
+        await waitFor(() => {
+            expect(favoritosService.addFavorito).toHaveBeenCalledWith(1, 'place1');
+            expect(mockAlert).toHaveBeenCalledWith(expect.stringContaining('¡Pizza Test añadido a tus favoritos! ⭐'));
+        });
+    });
+
+    it('debe permitir crear una lista nueva desde el modal y añadir el restaurante', async () => {
+        (historialService.getHistorial as ReturnType<typeof vi.fn>).mockResolvedValue(mockHistoryData);
+        (favoritosService.getListas as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 1, user_id: 'user1', nombre: 'Favoritos' }]);
+        (favoritosService.crearLista as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 2, user_id: 'user1', nombre: 'Pizzas' });
+        (favoritosService.addFavorito as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 11, lista_id: 2, place_id: 'place1' });
+
+        renderHistoryPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Pizza Test')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText('Pizza Test')); // Expandir la card
+
+        const addFavBtn = await screen.findByRole('button', { name: /Añadir a favoritos/i });
+        fireEvent.click(addFavBtn);
+
+        await waitFor(() => {
+            expect(screen.getByText('Elige una lista:')).toBeInTheDocument();
+        });
+
+        const createNewListBtn = screen.getByRole('button', { name: /\+ Crear nueva lista/i });
+        fireEvent.click(createNewListBtn);
+
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('Nombre de la lista')).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByPlaceholderText('Nombre de la lista'), { target: { value: 'Pizzas' } });
+        
+        const createAndAddBtn = screen.getByRole('button', { name: /Crear y Añadir/i });
+        fireEvent.click(createAndAddBtn);
+
+        await waitFor(() => {
+            expect(favoritosService.crearLista).toHaveBeenCalledWith('Pizzas');
+            expect(favoritosService.addFavorito).toHaveBeenCalledWith(2, 'place1');
+            expect(mockAlert).toHaveBeenCalledWith(expect.stringContaining('¡Lista "Pizzas" creada y Pizza Test añadido! ⭐'));
+        });
     });
 });
