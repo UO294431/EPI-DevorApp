@@ -4,6 +4,7 @@ import Autocomplete from "react-google-autocomplete";
 import { authService } from '../models/api/authService';
 import { recommendationService } from '../models/api/recommendationService';
 import { historialService } from '../models/api/historialService';
+import { savedForLaterService } from '../models/api/savedForLaterService';
 import tagsData from '../data/tags.json';
 
 interface Tag {
@@ -244,20 +245,39 @@ const RestaurantRecommendationPage: React.FC = () => {
 
                 <form onSubmit={handleSubmit} className="auth-form" noValidate>
                     {results.length > 0 && (
-                        <div
-                            onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
-                            style={{
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                padding: '1rem 1.25rem', background: 'var(--surface2)',
-                                borderRadius: 'var(--radius-sm)', cursor: 'pointer', marginBottom: '2rem',
-                                border: '1px solid var(--border)', transition: 'all 0.2s ease',
-                                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
-                            }}
-                        >
-                            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--accent)' }}>
-                                {isPanelCollapsed ? '🔍 Volver a buscar / Modificar filtros' : '🔼 Plegar opciones'}
-                            </span>
-                            <span>{isPanelCollapsed ? '▼' : '▲'}</span>
+                        <div style={{ display: 'flex', gap: '0.8rem', marginBottom: '2rem' }}>
+                            <div
+                                onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
+                                style={{
+                                    flex: 1,
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '1rem 1.25rem', background: 'var(--surface2)',
+                                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                                    border: '1px solid var(--border)', transition: 'all 0.2s ease',
+                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+                                }}
+                            >
+                                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--accent)' }}>
+                                    {isPanelCollapsed ? '🔍 Volver a buscar / Modificar filtros' : '🔼 Plegar opciones'}
+                                </span>
+                                <span>{isPanelCollapsed ? '▼' : '▲'}</span>
+                            </div>
+                            {isPanelCollapsed && (
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/home')}
+                                    className="btn-secondary"
+                                    style={{
+                                        padding: '0 1.25rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        borderRadius: 'var(--radius-sm)'
+                                    }}
+                                >
+                                    🏠 Volver al inicio
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -650,7 +670,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            <div style={{ width: '100%' }}>
+                                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                                                 <button
                                                     onClick={async (e) => {
                                                         e.stopPropagation();
@@ -673,6 +693,40 @@ const RestaurantRecommendationPage: React.FC = () => {
                                                         textTransform: 'uppercase'
                                                     }}>
                                                     SELECCIONAR ESTE RESTAURANTE
+                                                </button>
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        try {
+                                                            await savedForLaterService.saveForLater({
+                                                                place_id: place.id,
+                                                                name: place.name,
+                                                                rating: place.rating || 0,
+                                                                user_ratings_total: place.user_ratings_total || 0,
+                                                                types: place.types || [],
+                                                                address: place.address || '',
+                                                                main_photo: place.main_photo,
+                                                                summary: place.summary,
+                                                                opening_hours: place.opening_hours,
+                                                                google_maps_uri: place.google_maps_uri,
+                                                                website_uri: place.website_uri,
+                                                            });
+                                                            alert(`¡Has guardado ${place.name} para más tarde! ⏰`);
+                                                        } catch (err: any) {
+                                                            console.error("Error saving for later:", err);
+                                                            alert(err.message || "Error al guardar para más tarde.");
+                                                        }
+                                                    }}
+                                                    type="button"
+                                                    className="btn-secondary"
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '1rem',
+                                                        fontWeight: 600,
+                                                        border: '1px solid var(--border)',
+                                                        borderRadius: 'var(--radius-sm)'
+                                                    }}>
+                                                    ⏰ Guardar para más tarde
                                                 </button>
                                             </div>
                                         </div>

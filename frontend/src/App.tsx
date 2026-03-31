@@ -5,6 +5,7 @@ import HomePage from './views/HomePage';
 import RestaurantRecommendationPage from './views/RestaurantRecommendationPage';
 import HistoryPage from './views/HistoryPage';
 import FavoritesPage from './views/FavoritesPage';
+import SavedForLaterPage from './views/SavedForLaterPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -33,6 +34,11 @@ function App() {
           <Route path="/favorites" element={
             <ProtectedRoute>
               <FavoritesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/saved-for-later" element={
+            <ProtectedRoute>
+              <SavedForLaterPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/login" replace />} />
