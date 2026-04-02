@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { historialService } from '../models/api/historialService';
 import { favoritosService } from '../models/api/favoritosService';
+import { valoracionesService } from '../models/api/valoracionesService';
 import type { FavoritosList } from '../models/api/favoritosService';
 
 interface HistoryEntry {
@@ -24,8 +25,15 @@ const HistoryPage: React.FC = () => {
     const navigate = useNavigate();
     const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
     const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+    const [ratedPlaceIds, setRatedPlaceIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Estados para Valorar Restaurante
+    const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+    const [selectedEntryForRating, setSelectedEntryForRating] = useState<HistoryEntry | null>(null);
+    const [ratingVal, setRatingVal] = useState({ calidad: 0, precio: 0, higiene: 0, trato: 0 });
+    const [ratingComment, setRatingComment] = useState('');
 
     // Estados para Añadir a Favoritos
     const [isFavModalOpen, setIsFavModalOpen] = useState(false);
@@ -68,8 +76,71 @@ const HistoryPage: React.FC = () => {
             }
         };
 
+        const fetchRatings = async () => {
+            try {
+                const ratings = await valoracionesService.obtenerTodasMisValoraciones();
+                setRatedPlaceIds(new Set(ratings.map(r => r.place_id)));
+            } catch (err) {
+                console.error("Error fetching ratings:", err);
+            }
+        };
+
         fetchHistory();
+        fetchRatings();
     }, []);
+
+    const handleRateClick = async (entry: HistoryEntry) => {
+        setSelectedEntryForRating(entry);
+        setRatingVal({ calidad: 0, precio: 0, higiene: 0, trato: 0 });
+        setRatingComment('');
+        setIsRatingModalOpen(true);
+        setModalLoading(true);
+        
+        try {
+            const existingRating = await valoracionesService.obtenerMiValoracion(entry.place_id);
+            if (existingRating) {
+                setRatingVal({
+                    calidad: existingRating.calidad,
+                    precio: existingRating.precio,
+                    higiene: existingRating.higiene,
+                    trato: existingRating.trato
+                });
+                setRatingComment(existingRating.comentario || '');
+            }
+        } catch (error) {
+            console.error("Error al obtener la valoración existente:", error);
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    const handleRatingSubmit = async () => {
+        if (!selectedEntryForRating) return;
+        
+        try {
+            setModalLoading(true);
+            await valoracionesService.valorarRestaurante({
+                place_id: selectedEntryForRating.place_id,
+                calidad: ratingVal.calidad,
+                precio: ratingVal.precio,
+                higiene: ratingVal.higiene,
+                trato: ratingVal.trato,
+                comentario: ratingComment
+            });
+            setRatedPlaceIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(selectedEntryForRating.place_id);
+                return newSet;
+            });
+            alert(`¡Gracias por valorar ${selectedEntryForRating.name}! 🌟`);
+            setIsRatingModalOpen(false);
+        } catch (error: any) {
+            console.error("Error al guardar la valoración:", error);
+            alert(error.message || "Hubo un error al guardar la valoración.");
+        } finally {
+            setModalLoading(false);
+        }
+    };
 
     const handleAddToFavoritesClick = async (entry: HistoryEntry) => {
         setSelectedEntryForFav(entry);
@@ -176,13 +247,36 @@ const HistoryPage: React.FC = () => {
                         <div key={entry.id} className="restaurant-card-container" style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
                             <div
                                 className="restaurant-card"
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id);
+                                    }
+                                }}
                                 onClick={() => setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)}
                                 style={{
                                     display: 'flex', alignItems: 'center',
                                     padding: '1.5rem', background: 'transparent',
-                                    gap: '1.5rem', transition: 'all 0.2s ease', cursor: 'pointer'
+                                    gap: '1.5rem', transition: 'all 0.2s ease', cursor: 'pointer',
+                                    position: 'relative'
                                 }}
                             >
+                                {!ratedPlaceIds.has(entry.place_id) && (
+                                    <div 
+                                        title="¡Falta por reseñar!"
+                                        style={{
+                                            position: 'absolute', top: '12px', right: '12px',
+                                            background: '#ff5252', color: 'white',
+                                            borderRadius: '50%', width: '30px', height: '30px',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: '18px', fontWeight: 'bold', boxShadow: '0 3px 8px rgba(0,0,0,0.3)',
+                                            cursor: 'help', zIndex: 10
+                                        }}
+                                    >
+                                        !
+                                    </div>
+                                )}
                                 <div style={{
                                     width: '80px', height: '80px', borderRadius: '12px',
                                     overflow: 'hidden', background: 'var(--surface2)',
@@ -364,7 +458,10 @@ const HistoryPage: React.FC = () => {
                                                 ⭐ Añadir a favoritos
                                             </button>
                                             <button
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRateClick(entry);
+                                                }}
                                                 className="btn-secondary"
                                                 style={{
                                                     flex: 1,
@@ -372,7 +469,7 @@ const HistoryPage: React.FC = () => {
                                                     borderRadius: 'var(--radius-sm)'
                                                 }}
                                             >
-                                                📝 Valorar restaurante
+                                                {ratedPlaceIds.has(entry.place_id) ? '✏️ Cambiar reseña' : '📝 Valorar restaurante'}
                                             </button>
                                         </div>
                                         <button
@@ -446,6 +543,89 @@ const HistoryPage: React.FC = () => {
                 `}</style>
             </div>
 
+            {/* Modal para valorar restaurante */}
+            {isRatingModalOpen && selectedEntryForRating && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.4)',
+                    animation: 'fadeIn 0.2s ease'
+                }}>
+                    <div style={{
+                        background: 'var(--surface)', maxWidth: '400px', width: '100%',
+                        borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+                        border: '1px solid var(--border)', overflow: 'hidden', animation: 'scaleUp 0.2s ease'
+                    }}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Valorar {selectedEntryForRating.name}</h3>
+                            <button onClick={() => setIsRatingModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                        </div>
+
+                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {['calidad', 'precio', 'higiene', 'trato'].map((aspect) => (
+                                <div key={aspect} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', textTransform: 'capitalize' }}>
+                                        {aspect}
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <span 
+                                                key={star}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        setRatingVal({ ...ratingVal, [aspect]: star });
+                                                    }
+                                                }}
+                                                onClick={() => setRatingVal({ ...ratingVal, [aspect]: star })}
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    fontSize: '1.5rem',
+                                                    color: star <= (ratingVal as any)[aspect] ? '#ffb400' : 'var(--muted)',
+                                                    opacity: star <= (ratingVal as any)[aspect] ? 1 : 0.3,
+                                                    transition: 'color 0.2s ease, opacity 0.2s ease'
+                                                }}
+                                            >
+                                                ★
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div style={{ marginTop: '0.5rem' }}>
+                                <label htmlFor="rating-comment" style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem', display: 'block' }}>Comentario (opcional)</label>
+                                <textarea
+                                    id="rating-comment"
+                                    value={ratingComment}
+                                    onChange={(e) => setRatingComment(e.target.value)}
+                                    placeholder="¿Qué te ha parecido?"
+                                    rows={3}
+                                    style={{
+                                        width: '100%', padding: '0.8rem', borderRadius: 'var(--radius-sm)',
+                                        border: '1px solid var(--border)', background: 'var(--surface2)',
+                                        color: 'var(--text)', resize: 'none', fontFamily: 'inherit'
+                                    }}
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleRatingSubmit}
+                                disabled={modalLoading || Object.values(ratingVal).includes(0)}
+                                className="btn-primary"
+                                style={{
+                                    marginTop: '0.5rem', padding: '0.8rem', width: '100%',
+                                    opacity: Object.values(ratingVal).includes(0) ? 0.5 : 1
+                                }}
+                            >
+                                {modalLoading ? 'Enviando...' : 'Enviar valoración'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal para añadir a favoritos */}
             {isFavModalOpen && (
                 <div style={{
@@ -499,7 +679,9 @@ const HistoryPage: React.FC = () => {
                                                 transition: 'background 0.2s ease', color: 'var(--text)'
                                             }}
                                             onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface3)'}
+                                            onFocus={(e) => e.currentTarget.style.background = 'var(--surface3)'}
                                             onMouseOut={(e) => e.currentTarget.style.background = 'var(--surface2)'}
+                                            onBlur={(e) => e.currentTarget.style.background = 'var(--surface2)'}
                                         >
                                             <span>📋</span> {list.nombre}
                                         </button>

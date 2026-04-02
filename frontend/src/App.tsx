@@ -6,6 +6,7 @@ import RestaurantRecommendationPage from './views/RestaurantRecommendationPage';
 import HistoryPage from './views/HistoryPage';
 import FavoritesPage from './views/FavoritesPage';
 import SavedForLaterPage from './views/SavedForLaterPage';
+import ValoracionesPage from './views/ValoracionesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -39,6 +40,11 @@ function App() {
           <Route path="/saved-for-later" element={
             <ProtectedRoute>
               <SavedForLaterPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/mis-valoraciones" element={
+            <ProtectedRoute>
+              <ValoracionesPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/login" replace />} />

@@ -1,0 +1,97 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.core.security import get_current_user
+from app.infrastructure.database import get_db
+from app.models.dtos.valoracion_dto import ValoracionCreate, ValoracionResponse
+from app.models.entities.usuarios import Usuario
+from app.services import valoracion_service
+
+
+router = APIRouter(prefix="/api/valoraciones", tags=["Valoraciones"])
+
+
+def _get_uid(current_user: Usuario) -> str:
+    """Resuelve el Firebase UID a partir del email del usuario autenticado."""
+    from firebase_admin import auth as fb_auth
+    from app.infrastructure.firebase.firebase_admin import get_firebase_app
+    get_firebase_app()
+    return fb_auth.get_user_by_email(current_user.email).uid
+
+
+@router.post("", response_model=ValoracionResponse, status_code=201)
+async def valorar_restaurante(
+    data: ValoracionCreate,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Crea o actualiza la valoración de un usuario para un restaurante.
+    """
+    uid = _get_uid(current_user)
+    return valoracion_service.valorar_restaurante(db, uid, data)
+
+
+@router.get("")
+async def obtener_todas_mis_valoraciones(
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Obtiene todas las valoraciones del usuario actual y adjunta
+    los detalles del restaurante obtenidos de Google Places.
+    """
+    uid = _get_uid(current_user)
+    valoraciones = valoracion_service.obtener_todas_mis_valoraciones(db, uid)
+    
+    import asyncio
+    from app.services.recommendation_service import recommendation_service
+    
+    tasks = [recommendation_service.get_place_details(v.place_id) for v in valoraciones]
+    details_list = await asyncio.gather(*tasks)
+    
+    results = []
+    for val, details in zip(valoraciones, details_list):
+        if not details: continue
+        results.append({
+            "id": val.id,
+            "place_id": val.place_id,
+            "calidad": val.calidad,
+            "precio": val.precio,
+            "higiene": val.higiene,
+            "trato": val.trato,
+            "comentario": val.comentario,
+            "restaurant": details
+        })
+    
+    return results
+
+
+@router.get("/{place_id}")
+async def obtener_mi_valoracion(
+    place_id: str,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Obtiene la valoración que el usuario actual le ha dado a un restaurante.
+    Devuelve un objeto vacío si no hay valoración.
+    """
+    uid = _get_uid(current_user)
+    return valoracion_service.obtener_mi_valoracion(db, uid, place_id)
+
+@router.delete("/{place_id}", status_code=204)
+async def eliminar_valoracion(
+    place_id: str,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Elimina la valoración de un usuario para un restaurante.
+    """
+    uid = _get_uid(current_user)
+    success = valoracion_service.eliminar_valoracion(db, uid, place_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Valoración no encontrada o no autorizada")

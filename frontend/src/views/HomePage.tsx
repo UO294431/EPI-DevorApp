@@ -33,6 +33,12 @@ const HomePage: React.FC = () => {
             >
                 Ver Guardados para más tarde
             </button>
+            <button
+                onClick={() => navigate('/mis-valoraciones')}
+                style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: '#E91E63', color: 'white', border: 'none', borderRadius: '5px' }}
+            >
+                Mis Valoraciones
+            </button>
             <button onClick={submitLogout} disabled={loading} style={{ padding: '10px 20px', cursor: 'pointer' }}>
                 {loading ? 'Cerrando sesión...' : 'Cerrar Sesión'}
             </button>
