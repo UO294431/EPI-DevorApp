@@ -12,6 +12,7 @@ class Valoracion(Base):
     higiene = Column(Integer, nullable=False, default=0)
     trato = Column(Integer, nullable=False, default=0)
     comentario = Column(String, nullable=True)
+    me_gustas = Column(Integer, nullable=False, default=0)
 
     def __repr__(self) -> str:
         return (

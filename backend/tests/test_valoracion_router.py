@@ -5,7 +5,7 @@ from app.main import app
 from app.models.entities.usuarios import Usuario
 from app.core.security import get_current_user
 from app.models.entities.valoracion import Valoracion
-from app.models.dtos.valoracion_dto import ValoracionResponse
+from app.models.dtos.valoracion_dto import ValoracionResponse, ValoracionPublicaResponse
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def dummy_user():
 def dummy_valoracion():
     return Valoracion(
         id=1, user_id="test_uid", place_id="place1",
-        calidad=5, precio=4, higiene=3, trato=5, comentario="Excelente"
+        calidad=5, precio=4, higiene=3, trato=5, comentario="Excelente", me_gustas=0
     )
 
 
@@ -151,6 +151,101 @@ async def test_eliminar_valoracion_endpoint_not_found(mock_service, mock_get_uid
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.delete("/api/valoraciones/place_inexistente")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert "no encontrada" in response.json()["detail"]
+
+
+# ── GET /api/valoraciones/restaurante/{place_id} ──────────────────────────────
+
+@pytest.mark.asyncio
+@patch("app.presentation.routers.valoraciones_router._get_uid")
+@patch("app.presentation.routers.valoraciones_router.valoracion_service")
+async def test_obtener_resenas_restaurante_con_datos(mock_service, mock_get_uid, dummy_user):
+    mock_get_uid.return_value = "test_uid"
+    mock_service.obtener_resenas_restaurante.return_value = [
+        ValoracionPublicaResponse(
+            id=1, username="pepe", calidad=5, precio=4,
+            higiene=3, trato=5, comentario="Genial", me_gustas=2
+        ),
+        ValoracionPublicaResponse(
+            id=2, username="ana", calidad=3, precio=3,
+            higiene=4, trato=4, comentario=None, me_gustas=0
+        ),
+    ]
+
+    app.dependency_overrides[get_current_user] = lambda: dummy_user
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/valoraciones/restaurante/place1")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["username"] == "pepe"
+    assert data[0]["me_gustas"] == 2
+    assert data[1]["username"] == "ana"
+    assert data[1]["comentario"] is None
+
+
+@pytest.mark.asyncio
+@patch("app.presentation.routers.valoraciones_router._get_uid")
+@patch("app.presentation.routers.valoraciones_router.valoracion_service")
+async def test_obtener_resenas_restaurante_sin_datos(mock_service, mock_get_uid, dummy_user):
+    mock_get_uid.return_value = "test_uid"
+    mock_service.obtener_resenas_restaurante.return_value = []
+
+    app.dependency_overrides[get_current_user] = lambda: dummy_user
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/valoraciones/restaurante/place_sin_resenas")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+# ── POST /api/valoraciones/{id}/like ─────────────────────────────────────────
+
+@pytest.mark.asyncio
+@patch("app.presentation.routers.valoraciones_router._get_uid")
+@patch("app.presentation.routers.valoraciones_router.valoracion_service")
+async def test_dar_me_gusta_exitoso(mock_service, mock_get_uid, dummy_user):
+    mock_get_uid.return_value = "test_uid"
+    mock_service.dar_me_gusta.return_value = ValoracionPublicaResponse(
+        id=1, username="pepe", calidad=5, precio=4,
+        higiene=3, trato=5, comentario="Genial", me_gustas=3
+    )
+
+    app.dependency_overrides[get_current_user] = lambda: dummy_user
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.post("/api/valoraciones/1/like")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["me_gustas"] == 3
+    assert data["username"] == "pepe"
+
+
+@pytest.mark.asyncio
+@patch("app.presentation.routers.valoraciones_router._get_uid")
+@patch("app.presentation.routers.valoraciones_router.valoracion_service")
+async def test_dar_me_gusta_valoracion_no_encontrada(mock_service, mock_get_uid, dummy_user):
+    mock_get_uid.return_value = "test_uid"
+    mock_service.dar_me_gusta.return_value = None
+
+    app.dependency_overrides[get_current_user] = lambda: dummy_user
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.post("/api/valoraciones/9999/like")
 
     app.dependency_overrides.clear()
 

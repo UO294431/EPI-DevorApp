@@ -10,6 +10,19 @@ export interface ValoracionCreate {
 export interface ValoracionResponse extends ValoracionCreate {
     id: number;
     user_id: string;
+    me_gustas: number;
+}
+
+export interface ValoracionPublica {
+    id: number;
+    username: string;
+    calidad: number;
+    precio: number;
+    higiene: number;
+    trato: number;
+    comentario?: string;
+    me_gustas: number;
+    ha_dado_me_gusta: boolean;
 }
 
 export interface ValoracionDetailedResponse {
@@ -84,5 +97,34 @@ export const valoracionesService = {
             const error = await response.json();
             throw new Error(error.detail || 'Error al eliminar la valoración');
         }
-    }
+    },
+
+    obtenerResenasRestaurante: async (place_id: string): Promise<ValoracionPublica[]> => {
+        const response = await fetch(`${API_URL}/api/valoraciones/restaurante/${place_id}`, {
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener las reseñas del restaurante');
+        }
+
+        return await response.json();
+    },
+
+    darMeGusta: async (valoracion_id: number): Promise<ValoracionPublica> => {
+        const response = await fetch(`${API_URL}/api/valoraciones/${valoracion_id}/like`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Error al dar me gusta');
+        }
+
+        return await response.json();
+    },
 };
+

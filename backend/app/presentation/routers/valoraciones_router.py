@@ -1,11 +1,11 @@
-from typing import Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.infrastructure.database import get_db
-from app.models.dtos.valoracion_dto import ValoracionCreate, ValoracionResponse
+from app.models.dtos.valoracion_dto import ValoracionCreate, ValoracionResponse, ValoracionPublicaResponse
 from app.models.entities.usuarios import Usuario
 from app.services import valoracion_service
 
@@ -34,7 +34,7 @@ async def valorar_restaurante(
     return valoracion_service.valorar_restaurante(db, uid, data)
 
 
-@router.get("")
+@router.get("", )
 async def obtener_todas_mis_valoraciones(
     current_user: Annotated[Usuario, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -69,6 +69,36 @@ async def obtener_todas_mis_valoraciones(
     return results
 
 
+@router.get("/restaurante/{place_id}", response_model=List[ValoracionPublicaResponse])
+async def obtener_resenas_restaurante(
+    place_id: str,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Devuelve todas las reseñas de un restaurante (de todos los usuarios),
+    incluyendo username, puntuaciones, comentario y me_gustas.
+    """
+    uid = _get_uid(current_user)
+    return valoracion_service.obtener_resenas_restaurante(db, place_id, uid)
+
+
+@router.post("/{valoracion_id}/like", response_model=ValoracionPublicaResponse, responses={404: {"description": "Valoración no encontrada"}})
+async def dar_me_gusta(
+    valoracion_id: int,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Alterna el 'me gusta' de una valoración por parte del usuario actual.
+    """
+    uid = _get_uid(current_user)
+    result = valoracion_service.dar_me_gusta(db, uid, valoracion_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Valoración no encontrada")
+    return result
+
+
 @router.get("/{place_id}")
 async def obtener_mi_valoracion(
     place_id: str,
@@ -82,7 +112,7 @@ async def obtener_mi_valoracion(
     uid = _get_uid(current_user)
     return valoracion_service.obtener_mi_valoracion(db, uid, place_id)
 
-@router.delete("/{place_id}", status_code=204)
+@router.delete("/{place_id}", status_code=204, responses={404: {"description": "Valoración no encontrada o no autorizada"}})
 async def eliminar_valoracion(
     place_id: str,
     current_user: Annotated[Usuario, Depends(get_current_user)],
@@ -95,3 +125,4 @@ async def eliminar_valoracion(
     success = valoracion_service.eliminar_valoracion(db, uid, place_id)
     if not success:
         raise HTTPException(status_code=404, detail="Valoración no encontrada o no autorizada")
+

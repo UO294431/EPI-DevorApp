@@ -16,6 +16,19 @@ vi.mock('../models/api/authService', () => ({
     },
 }));
 
+vi.mock('../models/api/savedForLaterService', () => ({
+    savedForLaterService: {
+        saveForLater: vi.fn(),
+    },
+}));
+
+vi.mock('../models/api/valoracionesService', () => ({
+    valoracionesService: {
+        obtenerResenasRestaurante: vi.fn(),
+        darMeGusta: vi.fn(),
+    },
+}));
+
 vi.mock('../core/auth', () => ({
     useAuth: () => ({
         user: { ubicacion: 'Valencia' },
@@ -24,6 +37,7 @@ vi.mock('../core/auth', () => ({
 
 import { recommendationService } from '../models/api/recommendationService';
 import { authService } from '../models/api/authService';
+import { valoracionesService } from '../models/api/valoracionesService';
 
 const renderPage = () =>
     render(
@@ -181,6 +195,49 @@ describe('RestaurantRecommendationPage', () => {
         expect(screen.getByText(/La mejor pizza de la ciudad/i)).toBeInTheDocument();
         expect(screen.getByText(/Horario de apertura/i)).toBeInTheDocument();
         expect(screen.getByText(/SELECCIONAR ESTE RESTAURANTE/i)).toBeInTheDocument();
+    });
+
+    it('debe cargar y mostrar las reseñas de la comunidad al expandir un restaurante', async () => {
+        (recommendationService.search as any).mockResolvedValue({
+            results: [{ id: '1', name: 'Pizza Place', rating: 4.5, user_ratings_total: 100 }],
+            next_page_token: null
+        });
+
+        (valoracionesService.obtenerResenasRestaurante as any).mockResolvedValue([
+            { id: 101, username: 'user1', calidad: 5, precio: 4, higiene: 5, trato: 5, comentario: 'Excelente!', me_gustas: 10 }
+        ]);
+
+        renderPage();
+
+        // Esperar a que se cargue la ubicación preferida (evita que la búsqueda falle por falta de ubicación)
+        await waitFor(() => {
+            expect(screen.getByText(/Usar ubicación preferida/i)).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Buscar Sugerencias/i }));
+
+        await waitFor(() => {
+            // Usamos un matcher más flexible por si el texto estuviera fragmentado o hubiera múltiples ocurrencias
+            expect(screen.getByText((content, element) => {
+                return element?.tagName.toLowerCase() === 'div' && content.includes('Pizza Place');
+            })).toBeInTheDocument();
+        });
+
+        // Click to expand
+        fireEvent.click(screen.getByText(/Pizza Place/i));
+
+        // It should load reviews
+        await waitFor(() => {
+            expect(valoracionesService.obtenerResenasRestaurante).toHaveBeenCalledWith('1');
+        });
+
+        // It should display community reviews header and the review itself
+        expect(screen.getByText(/Reseñas de la comunidad/i)).toBeInTheDocument();
+        expect(screen.getByText(/user1/i)).toBeInTheDocument();
+        expect(screen.getByText(/Excelente!/i)).toBeInTheDocument();
+        
+        // Match exacto para el número de likes para no confundirse con el "100" de reseñas totales
+        expect(screen.getByText(/^10$/)).toBeInTheDocument();
     });
 
     it('debe mostrar la paginación con el botón "Siguiente" si hay token de paginación', async () => {

@@ -5,6 +5,8 @@ import { authService } from '../models/api/authService';
 import { recommendationService } from '../models/api/recommendationService';
 import { historialService } from '../models/api/historialService';
 import { savedForLaterService } from '../models/api/savedForLaterService';
+import { valoracionesService } from '../models/api/valoracionesService';
+import type { ValoracionPublica } from '../models/api/valoracionesService';
 import tagsData from '../data/tags.json';
 
 interface Tag {
@@ -67,6 +69,10 @@ const RestaurantRecommendationPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
 
+    // Reseñas por restaurante: { [place_id]: ValoracionPublica[] }
+    const [resenasPorRestaurante, setResenasPorRestaurante] = useState<Record<string, ValoracionPublica[]>>({});
+    const [loadingResenas, setLoadingResenas] = useState<Record<string, boolean>>({});
+
 
     useEffect(() => {
         if (!tagInput.trim()) {
@@ -115,6 +121,7 @@ const RestaurantRecommendationPage: React.FC = () => {
         setCurrentPage(1);
         setNextPageToken(null);
         setExpandedRestaurantId(null);
+        setResenasPorRestaurante({});
 
         const currentSearchLocation = locationMode === 'preferred' ? preferredLocation : customLocation;
 
@@ -186,6 +193,69 @@ const RestaurantRecommendationPage: React.FC = () => {
     const handlePrevPage = () => {
         if (currentPage > 1) {
             setCurrentPage(prev => prev - 1);
+        }
+    };
+
+    const handleExpandRestaurant = async (placeId: string) => {
+        const newId = expandedRestaurantId === placeId ? null : placeId;
+        setExpandedRestaurantId(newId);
+
+        if (newId && !resenasPorRestaurante[newId]) {
+            setLoadingResenas(prev => ({ ...prev, [newId]: true }));
+            try {
+                const resenas = await valoracionesService.obtenerResenasRestaurante(newId);
+                setResenasPorRestaurante(prev => ({ ...prev, [newId]: resenas }));
+            } catch (err) {
+                setResenasPorRestaurante(prev => ({ ...prev, [newId]: [] }));
+            } finally {
+                setLoadingResenas(prev => ({ ...prev, [newId]: false }));
+            }
+        }
+    };
+
+    const handleMeGusta = async (placeId: string, valoracionId: number) => {
+        // Encontrar la reseña actual para saber su estado previo
+        const resenaActual = (resenasPorRestaurante[placeId] || []).find(r => r.id === valoracionId);
+        if (!resenaActual) return;
+
+        const yaDabaLike = resenaActual.ha_dado_me_gusta;
+
+        // Actualización optimista de la UI
+        setResenasPorRestaurante(prev => ({
+            ...prev,
+            [placeId]: (prev[placeId] || []).map(r =>
+                r.id === valoracionId 
+                    ? { 
+                        ...r, 
+                        ha_dado_me_gusta: !yaDabaLike,
+                        me_gustas: !yaDabaLike ? r.me_gustas + 1 : Math.max(0, r.me_gustas - 1)
+                      } 
+                    : r
+            )
+        }));
+
+        try {
+            const updated = await valoracionesService.darMeGusta(valoracionId);
+            setResenasPorRestaurante(prev => ({
+                ...prev,
+                [placeId]: (prev[placeId] || []).map(r =>
+                    r.id === updated.id ? updated : r
+                )
+            }));
+        } catch {
+            // Revertir en caso de error
+            setResenasPorRestaurante(prev => ({
+                ...prev,
+                [placeId]: (prev[placeId] || []).map(r =>
+                    r.id === valoracionId 
+                        ? { 
+                            ...r, 
+                            ha_dado_me_gusta: yaDabaLike,
+                            me_gustas: yaDabaLike ? r.me_gustas + 1 : Math.max(0, r.me_gustas - 1)
+                          } 
+                        : r
+                )
+            }));
         }
     };
 
@@ -496,7 +566,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                             {results.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((place: any) => (
                                 <div key={place.id} className="restaurant-card-container" style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
                                     <div className="restaurant-card"
-                                        onClick={() => setExpandedRestaurantId(expandedRestaurantId === place.id ? null : place.id)}
+                                        onClick={() => handleExpandRestaurant(place.id)}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -728,6 +798,151 @@ const RestaurantRecommendationPage: React.FC = () => {
                                                     }}>
                                                     ⏰ Guardar para más tarde
                                                 </button>
+                                            </div>
+
+                                            {/* ── Sección de reseñas ── */}
+                                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                                                    <span style={{ fontSize: '1rem' }}>💬</span>
+                                                    <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)' }}>Reseñas de la comunidad</span>
+                                                    {resenasPorRestaurante[place.id] && (
+                                                        <span style={{
+                                                            background: 'rgba(124,109,250,0.15)',
+                                                            color: 'var(--accent)',
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: 600,
+                                                            padding: '0.15rem 0.5rem',
+                                                            borderRadius: '99px'
+                                                        }}>
+                                                            {resenasPorRestaurante[place.id].length}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {loadingResenas[place.id] ? (
+                                                    <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
+                                                        Cargando reseñas...
+                                                    </div>
+                                                ) : !resenasPorRestaurante[place.id] || resenasPorRestaurante[place.id].length === 0 ? (
+                                                    <div style={{
+                                                        textAlign: 'center', padding: '1.5rem',
+                                                        color: 'var(--muted)', fontSize: '0.875rem',
+                                                        background: 'var(--surface2)',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        border: '1px dashed var(--border)'
+                                                    }}>
+                                                        😶 Aún no hay reseñas para este restaurante.
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {resenasPorRestaurante[place.id].map(resena => (
+                                                            <div key={resena.id} style={{
+                                                                background: 'var(--surface2)',
+                                                                border: '1px solid var(--border)',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                padding: '1rem 1.1rem',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '0.7rem',
+                                                                transition: 'border-color 0.2s'
+                                                            }}>
+                                                                {/* Cabecera: avatar + username */}
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                                    <div style={{
+                                                                        width: '32px', height: '32px',
+                                                                        borderRadius: '50%',
+                                                                        background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        fontSize: '0.8rem', fontWeight: 700, color: '#fff',
+                                                                        flexShrink: 0
+                                                                    }}>
+                                                                        {resena.username.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text)' }}>
+                                                                        {resena.username}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Puntuaciones */}
+                                                                <div style={{
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: 'repeat(2, 1fr)',
+                                                                    gap: '0.4rem 1rem'
+                                                                }}>
+                                                                    {[
+                                                                        { label: 'Calidad', val: resena.calidad },
+                                                                        { label: 'Precio', val: resena.precio },
+                                                                        { label: 'Higiene', val: resena.higiene },
+                                                                        { label: 'Trato', val: resena.trato },
+                                                                    ].map(({ label, val }) => (
+                                                                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                                            <span style={{ fontSize: '0.72rem', color: 'var(--muted)', minWidth: '46px' }}>{label}</span>
+                                                                            <div style={{ display: 'flex', gap: '1px' }}>
+                                                                                {Array.from({ length: 5 }).map((_, i) => (
+                                                                                    <span key={i} style={{
+                                                                                        fontSize: '0.7rem',
+                                                                                        color: i < val ? '#ffb400' : 'var(--muted)',
+                                                                                        opacity: i < val ? 1 : 0.3
+                                                                                    }}>★</span>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+
+                                                                {/* Comentario */}
+                                                                {resena.comentario && (
+                                                                    <p style={{
+                                                                        fontSize: '0.85rem',
+                                                                        color: 'var(--text)',
+                                                                        lineHeight: '1.5',
+                                                                        margin: 0,
+                                                                        fontStyle: 'italic',
+                                                                        opacity: 0.85
+                                                                    }}>
+                                                                        "{resena.comentario}"
+                                                                    </p>
+                                                                )}
+
+                                                                {/* Me gusta */}
+                                                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleMeGusta(place.id, resena.id); }}
+                                                                        title={resena.ha_dado_me_gusta ? "Quitar me gusta" : "Me gusta"}
+                                                                        style={{
+                                                                            background: 'none',
+                                                                            border: resena.ha_dado_me_gusta ? '1px solid #f472b6' : '1px solid var(--border)',
+                                                                            borderRadius: '99px',
+                                                                            padding: '0.3rem 0.75rem',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.4rem',
+                                                                            fontSize: '0.8rem',
+                                                                            color: resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)',
+                                                                            transition: 'all 0.2s',
+                                                                        }}
+                                                                        onMouseEnter={e => {
+                                                                            (e.currentTarget as HTMLButtonElement).style.borderColor = '#f472b6';
+                                                                            (e.currentTarget as HTMLButtonElement).style.color = '#f472b6';
+                                                                        }}
+                                                                        onMouseLeave={e => {
+                                                                            if (!resena.ha_dado_me_gusta) {
+                                                                                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)';
+                                                                                (e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)';
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <span style={{ fontSize: '1rem', color: resena.ha_dado_me_gusta ? '#f472b6' : 'inherit' }}>
+                                                                            {resena.ha_dado_me_gusta ? '❤️' : '🤍'}
+                                                                        </span>
+                                                                        <span>{resena.me_gustas}</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}

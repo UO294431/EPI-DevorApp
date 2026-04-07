@@ -15,7 +15,25 @@ class ValoracionCreate(ValoracionBase):
 class ValoracionResponse(ValoracionBase):
     id: int
     user_id: str
+    me_gustas: int = 0
 
     model_config = {
         "from_attributes": True
     }
+
+class ValoracionPublicaResponse(BaseModel):
+    """DTO para exponer las reseñas de un restaurante a todos los usuarios."""
+    id: int
+    username: str
+    calidad: int
+    precio: int
+    higiene: int
+    trato: int
+    comentario: Optional[str] = None
+    me_gustas: int = 0
+    ha_dado_me_gusta: bool = False
+
+    model_config = {
+        "from_attributes": True
+    }
+
