@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Autocomplete from "react-google-autocomplete";
-import { Search, Star, ChevronLeft, Flame, MapPin, SlidersHorizontal, Map } from 'lucide-react';
+import { Search, Star, ChevronLeft, Flame, MapPin, SlidersHorizontal, Map, Heart, Bookmark, UtensilsCrossed } from 'lucide-react';
 import TopBar from '../components/TopBar';
 import { authService } from '../models/api/authService';
 import { recommendationService } from '../models/api/recommendationService';
@@ -10,6 +10,7 @@ import { savedForLaterService } from '../models/api/savedForLaterService';
 import { valoracionesService } from '../models/api/valoracionesService';
 import type { ValoracionPublica } from '../models/api/valoracionesService';
 import tagsData from '../data/tags.json';
+import RestaurantDetailView from '../components/RestaurantDetailView';
 
 interface Tag {
     id: string;
@@ -66,7 +67,27 @@ const RestaurantRecommendationPage: React.FC = () => {
     const [results, setResults] = useState<any[]>([]);
     const [nextPageToken, setNextPageToken] = useState<string | null>(null);
     const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
-    const [expandedRestaurantId, setExpandedRestaurantId] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<any | null>(null);
+
+    // Sync selected entry with URL parameter 'detail'
+    useEffect(() => {
+        const detailId = searchParams.get('detail');
+        if (detailId) {
+            // Check if we already have it in results
+            const entry = results.find(p => p.id === detailId);
+            if (entry) {
+                setSelectedEntryForDetail(entry);
+                if (!resenasPorRestaurante[detailId]) {
+                    fetchResenas(detailId);
+                }
+            } else {
+                setSearchParams({});
+            }
+        } else {
+            setSelectedEntryForDetail(null);
+        }
+    }, [searchParams, results]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
@@ -122,7 +143,7 @@ const RestaurantRecommendationPage: React.FC = () => {
         setLoading(true);
         setCurrentPage(1);
         setNextPageToken(null);
-        setExpandedRestaurantId(null);
+        setSelectedEntryForDetail(null);
         setResenasPorRestaurante({});
 
         const currentSearchLocation = locationMode === 'preferred' ? preferredLocation : customLocation;
@@ -198,19 +219,22 @@ const RestaurantRecommendationPage: React.FC = () => {
         }
     };
 
-    const handleExpandRestaurant = async (placeId: string) => {
-        const newId = expandedRestaurantId === placeId ? null : placeId;
-        setExpandedRestaurantId(newId);
+    const handleExpandRestaurant = (place: any) => {
+        if (place?.id) {
+            setSearchParams({ detail: place.id.toString() });
+        }
+    };
 
-        if (newId && !resenasPorRestaurante[newId]) {
-            setLoadingResenas(prev => ({ ...prev, [newId]: true }));
+    const fetchResenas = async (placeId: string) => {
+        if (!resenasPorRestaurante[placeId]) {
+            setLoadingResenas(prev => ({ ...prev, [placeId]: true }));
             try {
-                const resenas = await valoracionesService.obtenerResenasRestaurante(newId);
-                setResenasPorRestaurante(prev => ({ ...prev, [newId]: resenas }));
+                const resenas = await valoracionesService.obtenerResenasRestaurante(placeId);
+                setResenasPorRestaurante(prev => ({ ...prev, [placeId]: resenas }));
             } catch (err) {
-                setResenasPorRestaurante(prev => ({ ...prev, [newId]: [] }));
+                setResenasPorRestaurante(prev => ({ ...prev, [placeId]: [] }));
             } finally {
-                setLoadingResenas(prev => ({ ...prev, [newId]: false }));
+                setLoadingResenas(prev => ({ ...prev, [placeId]: false }));
             }
         }
     };
@@ -306,11 +330,515 @@ const RestaurantRecommendationPage: React.FC = () => {
         }
     };
 
+    // ── Early Return Detail View ──────────────────────────────────────
+    if (selectedEntryForDetail) {
+        return (
+            <div className="page-screen">
+                <div style={{ animation: 'fadeIn 0.2s ease', position: 'relative', zIndex: 10 }}>
+                    <RestaurantDetailView
+                        restaurant={selectedEntryForDetail}
+                        backText="Resultados"
+                        onBack={() => navigate(-1)}
+                        actions={
+                            <>
+                                <div className="detail-actions-column">
+                                    <button
+                                        onClick={async (e) => {
+                                            try {
+                                                await historialService.addToHistorial(selectedEntryForDetail.id);
+                                                alert(`¡Has seleccionado ${selectedEntryForDetail.name}!`);
+                                                navigate('/home');
+                                            } catch (err: any) {
+                                                console.error("Error saving to history:", err);
+                                                alert("Error al guardar en el historial: " + err.message);
+                                            }
+                                        }}
+                                        className="btn-detail-main"
+                                    >
+                                        SELECCIONAR ESTE RESTAURANTE
+                                    </button>
+                                    <button
+                                        onClick={async (e) => {
+                                            try {
+                                                await savedForLaterService.saveForLater({
+                                                    place_id: selectedEntryForDetail.id,
+                                                    name: selectedEntryForDetail.name,
+                                                    rating: selectedEntryForDetail.rating || 0,
+                                                    user_ratings_total: selectedEntryForDetail.user_ratings_total || 0,
+                                                    types: selectedEntryForDetail.types || [],
+                                                    address: selectedEntryForDetail.address || '',
+                                                    main_photo: selectedEntryForDetail.main_photo,
+                                                    summary: selectedEntryForDetail.summary,
+                                                    opening_hours: selectedEntryForDetail.opening_hours,
+                                                    google_maps_uri: selectedEntryForDetail.google_maps_uri,
+                                                    website_uri: selectedEntryForDetail.website_uri,
+                                                    open_now: (selectedEntryForDetail as any).opening_hours?.open_now || selectedEntryForDetail.open_now
+                                                });
+                                                alert(`¡Has guardado ${selectedEntryForDetail.name} para más tarde!`);
+                                            } catch (err: any) {
+                                                console.error("Error saving for later:", err);
+                                                alert(err.message || "Error al guardar para más tarde.");
+                                            }
+                                        }}
+                                        type="button"
+                                        className="btn-detail-outline"
+                                    >
+                                        <Bookmark size={16} /> Guardar para más tarde
+                                    </button>
+                                </div>
+
+                                {/* ── Sección de reseñas ── */}
+                                {(() => {
+                                    const currResenas = resenasPorRestaurante[selectedEntryForDetail.id] || [];
+                                    const avg = { calidad: 0, precio: 0, higiene: 0, trato: 0 };
+                                    if (currResenas.length > 0) {
+                                        avg.calidad = currResenas.reduce((s: number, r: any) => s + r.calidad, 0) / currResenas.length;
+                                        avg.precio = currResenas.reduce((s: number, r: any) => s + r.precio, 0) / currResenas.length;
+                                        avg.higiene = currResenas.reduce((s: number, r: any) => s + r.higiene, 0) / currResenas.length;
+                                        avg.trato = currResenas.reduce((s: number, r: any) => s + r.trato, 0) / currResenas.length;
+                                    }
+
+                                    const formatDateStr = (dateString?: string) => {
+                                        if (!dateString) return '';
+                                        const d = new Date(dateString);
+                                        const now = new Date();
+                                        const diffMs = now.getTime() - d.getTime();
+                                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                        if (diffDays === 0) return 'hoy';
+                                        if (diffDays === 1) return 'hace 1 día';
+                                        if (diffDays < 7) return `hace ${diffDays} días`;
+                                        if (diffDays < 30) return `hace ${Math.floor(diffDays / 7)} semanas`;
+                                        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                                    };
+
+                                    return (
+                                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: 'var(--space-8)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                                                <span style={{ fontSize: '1.2rem', color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                                </span>
+                                                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)' }}>Reseñas de la comunidad</span>
+                                                {currResenas.length > 0 && (
+                                                    <span style={{
+                                                        background: 'rgba(255,255,255,0.1)',
+                                                        color: 'var(--muted)',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 600,
+                                                        padding: '0.15rem 0.6rem',
+                                                        borderRadius: '12px',
+                                                        border: '1px solid var(--border)',
+                                                    }}>
+                                                        {currResenas.length}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {currResenas.length === 0 ? (
+                                                <div style={{
+                                                    textAlign: 'center', padding: '1.5rem',
+                                                    color: 'var(--muted)', fontSize: '0.875rem',
+                                                    background: 'var(--surface-2)',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    border: '1px dashed var(--border)'
+                                                }}>
+                                                    Aún no hay reseñas para este restaurante.
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                    {/* Promedios Card */}
+                                                    <div style={{
+                                                        background: 'var(--surface-2)',
+                                                        borderRadius: '12px',
+                                                        padding: '1.5rem',
+                                                        display: 'grid',
+                                                        gridTemplateColumns: '1fr 1fr',
+                                                        gap: '1rem 2rem',
+                                                        border: '1px solid var(--border)'
+                                                    }}>
+                                                        {[
+                                                            { label: 'Calidad', val: avg.calidad },
+                                                            { label: 'Precio', val: avg.precio },
+                                                            { label: 'Higiene', val: avg.higiene },
+                                                            { label: 'Trato', val: avg.trato },
+                                                        ].map(item => (
+                                                            <div key={item.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                                                    <span style={{ color: 'var(--text)', fontWeight: 600 }}>{item.label}</span>
+                                                                    <span style={{ color: 'var(--text)', fontWeight: 700 }}>{item.val.toFixed(1)}</span>
+                                                                </div>
+                                                                <div style={{ width: '100%', height: '4px', background: 'var(--surface-3)', borderRadius: '2px', overflow: 'hidden' }}>
+                                                                    <div style={{ width: `${(item.val / 5) * 100}%`, height: '100%', background: '#ffb400', borderRadius: '2px' }} />
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Reviews Feed */}
+                                                    <div className="reviews-feed" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                                                        {currResenas.map((resena: any) => (
+                                                            <div key={resena.id} className="review-item-card" style={{
+                                                                background: 'var(--surface-2)',
+                                                                padding: '1.5rem',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                border: '1px solid var(--border)',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '1rem'
+                                                            }}>
+                                                                {/* Header: User + Date */}
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                                    <div style={{
+                                                                        width: 36, height: 36, borderRadius: '50%',
+                                                                        background: 'var(--accent)', display: 'flex',
+                                                                        alignItems: 'center', justifyContent: 'center',
+                                                                        color: 'white', fontWeight: 700, fontSize: '0.9rem'
+                                                                    }}>
+                                                                        {resena.username?.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                        <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
+                                                                            {resena.username}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                                                            {formatDateStr(resena.fecha)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* 4 Scores Inline */}
+                                                                <div style={{
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+                                                                    gap: '0.6rem 1rem'
+                                                                }}>
+                                                                    {[
+                                                                        { label: 'Calidad', val: resena.calidad },
+                                                                        { label: 'Precio', val: resena.precio },
+                                                                        { label: 'Higiene', val: resena.higiene },
+                                                                        { label: 'Trato', val: resena.trato },
+                                                                    ].map(({ label, val }) => (
+                                                                        <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                            <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>{label}</span>
+                                                                            <div style={{ display: 'flex', gap: '1px' }}>
+                                                                                {Array.from({ length: 5 }).map((_, i) => (
+                                                                                    <span key={i} style={{
+                                                                                        fontSize: '0.65rem',
+                                                                                        color: i < val ? '#ffb400' : 'var(--muted)',
+                                                                                        opacity: i < val ? 1 : 0.3
+                                                                                    }}>★</span>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+
+                                                                {/* Comment */}
+                                                                {resena.comentario && (
+                                                                    <p style={{
+                                                                        fontSize: '0.85rem',
+                                                                        color: 'var(--text)',
+                                                                        lineHeight: '1.4',
+                                                                        margin: 0,
+                                                                        fontStyle: 'italic',
+                                                                        fontWeight: 600
+                                                                    }}>
+                                                                        "{resena.comentario}"
+                                                                    </p>
+                                                                )}
+
+                                                                {/* Like button right aligned */}
+                                                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.5rem' }}>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleMeGusta(selectedEntryForDetail.id, resena.id); }}
+                                                                        style={{
+                                                                            background: 'transparent',
+                                                                            border: '1px solid var(--border)',
+                                                                            borderRadius: '8px',
+                                                                            padding: '0.25rem 0.5rem',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.4rem',
+                                                                            fontSize: '0.8rem',
+                                                                            color: resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)',
+                                                                            transition: 'all 0.2s',
+                                                                        }}
+                                                                    >
+                                                                        <Heart size={14} fill={resena.ha_dado_me_gusta ? '#f472b6' : 'transparent'} color={resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)'} />
+                                                                        <span style={{ fontWeight: 500, fontSize: '0.75rem' }}>{resena.me_gustas}</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                            </>
+                        }
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="page-screen">
-            <TopBar showMenu={true} />
+            {!selectedEntryForDetail && <TopBar showMenu={true} />}
 
             <main className="home-body" style={{ padding: '0 var(--space-5) var(--space-8)' }}>
+                {selectedEntryForDetail && (
+                    <RestaurantDetailView
+                        restaurant={selectedEntryForDetail}
+                        backText="Resultados"
+                onBack={() => setSelectedEntryForDetail(null)}
+                actions={
+                    <>
+                        <div className="detail-actions-column">
+                            <button
+                                onClick={async (e) => {
+                                    try {
+                                        await historialService.addToHistorial(selectedEntryForDetail.id);
+                                        navigate('/home');
+                                    } catch (err: any) {
+                                        console.error("Error saving to history:", err);
+                                        alert("Error al guardar en el historial: " + err.message);
+                                    }
+                                }}
+                                className="btn-detail-main"
+                            >
+                                SELECCIONAR ESTE RESTAURANTE
+                            </button>
+                            <button
+                                onClick={async (e) => {
+                                    try {
+                                        await savedForLaterService.saveForLater({
+                                            place_id: selectedEntryForDetail.id,
+                                            name: selectedEntryForDetail.name,
+                                            rating: selectedEntryForDetail.rating || 0,
+                                            user_ratings_total: selectedEntryForDetail.user_ratings_total || 0,
+                                            types: selectedEntryForDetail.types || [],
+                                            address: selectedEntryForDetail.address || '',
+                                            main_photo: selectedEntryForDetail.main_photo,
+                                            summary: selectedEntryForDetail.summary,
+                                            opening_hours: selectedEntryForDetail.opening_hours,
+                                            google_maps_uri: selectedEntryForDetail.google_maps_uri,
+                                            website_uri: selectedEntryForDetail.website_uri,
+                                        });
+                                        alert(`¡Has guardado ${selectedEntryForDetail.name} para más tarde! ⏰`);
+                                    } catch (err: any) {
+                                        console.error("Error saving for later:", err);
+                                        alert(err.message || "Error al guardar para más tarde.");
+                                    }
+                                }}
+                                type="button"
+                                className="btn-detail-outline"
+                            >
+                                <Bookmark size={16} /> Guardar para más tarde
+                            </button>
+                        </div>
+
+                        {/* ── Sección de reseñas ── */}
+                        {(() => {
+                            const currResenas = resenasPorRestaurante[selectedEntryForDetail.id] || [];
+                            const avg = { calidad: 0, precio: 0, higiene: 0, trato: 0 };
+                            if (currResenas.length > 0) {
+                                avg.calidad = currResenas.reduce((s: number, r: any) => s + r.calidad, 0) / currResenas.length;
+                                avg.precio = currResenas.reduce((s: number, r: any) => s + r.precio, 0) / currResenas.length;
+                                avg.higiene = currResenas.reduce((s: number, r: any) => s + r.higiene, 0) / currResenas.length;
+                                avg.trato = currResenas.reduce((s: number, r: any) => s + r.trato, 0) / currResenas.length;
+                            }
+
+                            const formatDateStr = (dateString?: string) => {
+                                if (!dateString) return '';
+                                const d = new Date(dateString);
+                                const now = new Date();
+                                const diffMs = now.getTime() - d.getTime();
+                                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                if (diffDays === 0) return 'hoy';
+                                if (diffDays === 1) return 'hace 1 día';
+                                if (diffDays < 7) return `hace ${diffDays} días`;
+                                if (diffDays < 30) return `hace ${Math.floor(diffDays / 7)} semanas`;
+                                return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                            };
+
+                            return (
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                                        <span style={{ fontSize: '1.2rem', color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                        </span>
+                                        <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)' }}>Reseñas de la comunidad</span>
+                                        {currResenas.length > 0 && (
+                                            <span style={{
+                                                background: 'rgba(255,255,255,0.1)',
+                                                color: 'var(--muted)',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 600,
+                                                padding: '0.15rem 0.6rem',
+                                                borderRadius: '12px',
+                                                border: '1px solid var(--border)',
+                                            }}>
+                                                {currResenas.length}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {loadingResenas[selectedEntryForDetail.id] ? (
+                                        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
+                                            Cargando reseñas...
+                                        </div>
+                                    ) : currResenas.length === 0 ? (
+                                        <div style={{
+                                            textAlign: 'center', padding: '1.5rem',
+                                            color: 'var(--muted)', fontSize: '0.875rem',
+                                            background: 'var(--surface-2)',
+                                            borderRadius: 'var(--radius-sm)',
+                                            border: '1px dashed var(--border)'
+                                        }}>
+                                            😶 Aún no hay reseñas para este restaurante.
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            {/* Averages */}
+                                            <div style={{
+                                                        background: 'var(--surface-2)',
+                                                        borderRadius: '12px',
+                                                        padding: '1.5rem',
+                                                        display: 'grid',
+                                                        gridTemplateColumns: '1fr 1fr',
+                                                        gap: '1rem 2rem',
+                                                        border: '1px solid var(--border)'
+                                                    }}>
+                                                        {[
+                                                            { label: 'Calidad', val: avg.calidad },
+                                                            { label: 'Precio', val: avg.precio },
+                                                            { label: 'Higiene', val: avg.higiene },
+                                                            { label: 'Trato', val: avg.trato },
+                                                        ].map(item => (
+                                                            <div key={item.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                                                    <span style={{ color: 'var(--text)', fontWeight: 600 }}>{item.label}</span>
+                                                                    <span style={{ color: 'var(--text)', fontWeight: 700 }}>{item.val.toFixed(1)}</span>
+                                                                </div>
+                                                                <div style={{ width: '100%', height: '4px', background: 'var(--surface-3)', borderRadius: '2px', overflow: 'hidden' }}>
+                                                                    <div style={{ width: `${(item.val / 5) * 100}%`, height: '100%', background: '#ffb400', borderRadius: '2px' }} />
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                            {/* List of Reviews */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                {currResenas.map(resena => (
+                                                    <div key={resena.id} style={{
+                                                        background: 'var(--surface-2)',
+                                                        borderRadius: '12px',
+                                                        padding: '1.25rem',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '1rem',
+                                                        border: '1px solid transparent',
+                                                    }}>
+                                                        {/* Avatar + Name + Date */}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                            <div style={{
+                                                                width: '36px', height: '36px',
+                                                                borderRadius: '50%',
+                                                                background: 'var(--surface-3)',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)'
+                                                            }}>
+                                                                {resena.username.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
+                                                                    {resena.username}
+                                                                </span>
+                                                                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                                                    {formatDateStr(resena.fecha)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 4 Scores Inline */}
+                                                        <div style={{
+                                                            display: 'grid',
+                                                            gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+                                                            gap: '0.6rem 1rem'
+                                                        }}>
+                                                            {[
+                                                                { label: 'Calidad', val: resena.calidad },
+                                                                { label: 'Precio', val: resena.precio },
+                                                                { label: 'Higiene', val: resena.higiene },
+                                                                { label: 'Trato', val: resena.trato },
+                                                            ].map(({ label, val }) => (
+                                                                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>{label}</span>
+                                                                    <div style={{ display: 'flex', gap: '1px' }}>
+                                                                        {Array.from({ length: 5 }).map((_, i) => (
+                                                                            <span key={i} style={{
+                                                                                fontSize: '0.65rem',
+                                                                                color: i < val ? '#ffb400' : 'var(--muted)',
+                                                                                opacity: i < val ? 1 : 0.3
+                                                                            }}>★</span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* Comment */}
+                                                        {resena.comentario && (
+                                                            <p style={{
+                                                                fontSize: '0.85rem',
+                                                                color: 'var(--text)',
+                                                                lineHeight: '1.4',
+                                                                margin: 0,
+                                                                fontStyle: 'italic',
+                                                                fontWeight: 600
+                                                            }}>
+                                                                "{resena.comentario}"
+                                                            </p>
+                                                        )}
+
+                                                        {/* Like button right aligned */}
+                                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.5rem' }}>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleMeGusta(selectedEntryForDetail.id, resena.id); }}
+                                                                style={{
+                                                                    background: 'transparent',
+                                                                    border: '1px solid var(--border)',
+                                                                    borderRadius: '8px',
+                                                                    padding: '0.25rem 0.5rem',
+                                                                    cursor: 'pointer',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.4rem',
+                                                                    fontSize: '0.8rem',
+                                                                    color: resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)',
+                                                                    transition: 'all 0.2s',
+                                                                }}
+                                                            >
+                                                                <Heart size={14} fill={resena.ha_dado_me_gusta ? '#f472b6' : 'transparent'} color={resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)'} />
+                                                                <span style={{ fontWeight: 500, fontSize: '0.75rem' }}>{resena.me_gustas}</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </>
+                }
+                    />
+                )}
+
                 <form onSubmit={handleSubmit} noValidate>
 
 
@@ -518,33 +1046,33 @@ const RestaurantRecommendationPage: React.FC = () => {
                     )}
                 </form>
 
-                    {results.length > 0 && isPanelCollapsed && (
-                        <div className="filter-chips-row">
-                            <div style={{ display: 'flex', gap: 'var(--space-2)', flex: 1, overflowX: 'auto', scrollbarWidth: 'none' }}>
-                                {selectedTags.map(tag => (
-                                    <div key={tag.id} className="filter-chip chip-tag read-only">
-                                        {tag.label}
-                                    </div>
-                                ))}
-                                {selectedPrices.map(p => (
-                                    <div key={p} className="filter-chip chip-price read-only">
-                                        {currencySymbol.repeat(PRICE_LEVELS.find(pl => pl.id === p)?.level || 1)}
-                                    </div>
-                                ))}
-                                {openNow && (
-                                    <div className="filter-chip chip-status read-only">
-                                        Abiertos ahora
-                                    </div>
-                                )}
-                                <div className="filter-chip chip-location">
-                                    <MapPin size={14} /> {locationMode === 'preferred' ? preferredLocation || 'Ubicación' : customLocation || 'Ubicación'}
+                {results.length > 0 && isPanelCollapsed && (
+                    <div className="filter-chips-row">
+                        <div style={{ display: 'flex', gap: 'var(--space-2)', flex: 1, overflowX: 'auto', scrollbarWidth: 'none' }}>
+                            {selectedTags.map(tag => (
+                                <div key={tag.id} className="filter-chip chip-tag read-only">
+                                    {tag.label}
                                 </div>
+                            ))}
+                            {selectedPrices.map(p => (
+                                <div key={p} className="filter-chip chip-price read-only">
+                                    {currencySymbol.repeat(PRICE_LEVELS.find(pl => pl.id === p)?.level || 1)}
+                                </div>
+                            ))}
+                            {openNow && (
+                                <div className="filter-chip chip-status read-only">
+                                    Abiertos ahora
+                                </div>
+                            )}
+                            <div className="filter-chip chip-location">
+                                <MapPin size={14} /> {locationMode === 'preferred' ? preferredLocation || 'Ubicación' : customLocation || 'Ubicación'}
                             </div>
-                            <button type="button" className="filter-chip chip-edit" onClick={() => setIsPanelCollapsed(false)}>
-                                <SlidersHorizontal size={14} /> Editar
-                            </button>
                         </div>
-                    )}
+                        <button type="button" className="filter-chip chip-edit" onClick={() => setIsPanelCollapsed(false)}>
+                            <SlidersHorizontal size={14} /> Editar
+                        </button>
+                    </div>
+                )}
 
                 {results.length > 0 && (
                     <div style={{ marginTop: '1rem', width: '100%', animation: 'fadeSlideIn 0.3s ease', paddingBottom: '3rem' }}>
@@ -553,7 +1081,6 @@ const RestaurantRecommendationPage: React.FC = () => {
                             <div className="results-title-row">
                                 <h2 className="results-title">Sugerencias para ti</h2>
                                 <div className="sort-select-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <SlidersHorizontal size={14} style={{ color: 'var(--muted)' }} />
                                     <select
                                         aria-label="Ordenar resultados"
                                         value={sortBy}
@@ -581,7 +1108,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                             {results.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((place: any, index: number) => (
                                 <div key={place.id}
                                     className={`suggestion-card ${index === 0 && currentPage === 1 ? 'best-match' : ''}`}
-                                    onClick={() => handleExpandRestaurant(place.id)}>
+                                    onClick={() => handleExpandRestaurant(place)}>
 
                                     {index === 0 && currentPage === 1 && (
                                         <div className="best-match-badge">
@@ -594,7 +1121,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                             {place.main_photo ? (
                                                 <img src={place.main_photo} alt={place.name} />
                                             ) : (
-                                                <span style={{ fontSize: '1.5rem' }}>🍴</span>
+                                                <UtensilsCrossed size={24} style={{ opacity: 0.5 }} />
                                             )}
                                         </div>
 
@@ -611,343 +1138,19 @@ const RestaurantRecommendationPage: React.FC = () => {
                                                     ))}
                                                 </div>
                                                 <span className="card-rating-val">{place.rating}</span>
-                                                    <span className="card-rating-count">({place.user_ratings_total})</span>
-                                                </div>
-                                                <div className="card-address" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <MapPin size={10} /> {place.address}
-                                                </div>
+                                                <span className="card-rating-count">({place.user_ratings_total})</span>
                                             </div>
-
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                                                <div className={`status-badge ${(place.opening_hours && place.opening_hours.open_now) || place.open_now ? 'status-open' : 'status-closed'}`}>
-                                                    {(place.opening_hours && place.opening_hours.open_now) || place.open_now ? 'Abierto' : 'Cerrado'}
-                                                </div>
+                                            <div className="card-address" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <MapPin size={10} /> {place.address}
                                             </div>
                                         </div>
 
-                                    {expandedRestaurantId === place.id && (
-                                        <div style={{
-                                            padding: '1.5rem',
-                                            animation: 'fadeSlideIn 0.3s ease',
-                                            background: 'rgba(var(--accent-rgb), 0.03)',
-                                            borderTop: '1px solid var(--border)',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '1.5rem'
-                                        }}>
-                                            {place.summary && (
-                                                <div style={{
-                                                    fontSize: '0.95rem',
-                                                    color: 'var(--text)',
-                                                    lineHeight: '1.6',
-                                                    padding: '1rem',
-                                                    borderLeft: '3px solid var(--accent)',
-                                                    background: 'var(--surface2)',
-                                                    borderRadius: '0 var(--radius-sm) var(--radius-sm) 0'
-                                                }}>
-                                                    <span style={{ fontSize: '1.2rem', marginRight: '0.5rem', verticalAlign: 'middle' }}>💬</span>
-                                                    {place.summary}
-                                                </div>
-                                            )}
-
-                                            <div style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                                gap: '1.5rem',
-                                                marginBottom: '1rem'
-                                            }}>
-                                                {place.opening_hours && place.opening_hours.length > 0 && (
-                                                    <div style={{
-                                                        background: 'var(--surface2)',
-                                                        padding: '1rem',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        border: '1px solid var(--border)'
-                                                    }}>
-                                                        <div style={{ fontWeight: 700, marginBottom: '0.8rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                                                            🕒 Horario de apertura
-                                                        </div>
-                                                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                                            {place.opening_hours.slice(0, 7).map((day: string, idx: number) => {
-                                                                const parts = day.split(': ');
-                                                                const dayName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase() : '';
-                                                                const hoursRaw = parts[1] || '';
-                                                                const shifts = hoursRaw.split(', ');
-
-                                                                return (
-                                                                    <li key={idx} style={{
-                                                                        fontSize: '0.8rem',
-                                                                        opacity: 0.8,
-                                                                        padding: '0.4rem 0',
-                                                                        borderBottom: idx < place.opening_hours.length - 1 ? '1px solid var(--border)' : 'none',
-                                                                        display: 'flex',
-                                                                        justifyContent: 'space-between',
-                                                                        alignItems: 'baseline'
-                                                                    }}>
-                                                                        <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{dayName} :</span>
-                                                                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                            {shifts.map((s, sIdx) => (
-                                                                                <span key={sIdx}>{s}</span>
-                                                                            ))}
-                                                                        </div>
-                                                                    </li>
-                                                                );
-                                                            })}
-                                                        </ul>
-                                                    </div>
-                                                )}
-
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                    <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.9rem' }}>📍 Enlaces de interés</div>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                                        {place.google_maps_uri && (
-                                                            <a href={place.google_maps_uri} target="_blank" rel="noopener noreferrer"
-                                                                className="btn-secondary"
-                                                                style={{
-                                                                    fontSize: '0.85rem',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.6rem',
-                                                                    padding: '0.6rem 0.8rem',
-                                                                    background: 'var(--surface2)',
-                                                                    color: 'var(--accent)',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderRadius: 'var(--radius-sm)',
-                                                                    textDecoration: 'none',
-                                                                    transition: 'all 0.2s ease'
-                                                                }}>
-                                                                <span>🗺️</span> Google Maps
-                                                            </a>
-                                                        )}
-
-                                                        {place.website_uri && (
-                                                            <a href={place.website_uri} target="_blank" rel="noopener noreferrer"
-                                                                className="btn-secondary"
-                                                                style={{
-                                                                    fontSize: '0.85rem',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.6rem',
-                                                                    padding: '0.6rem 0.8rem',
-                                                                    background: 'var(--surface2)',
-                                                                    color: 'var(--accent)',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderRadius: 'var(--radius-sm)',
-                                                                    textDecoration: 'none',
-                                                                    transition: 'all 0.2s ease'
-                                                                }}>
-                                                                <span>🌐</span> Sitio Web
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        try {
-                                                            await historialService.addToHistorial(place.id);
-                                                            alert(`¡Has seleccionado ${place.name}!\n\n¡Que disfrutes de una deliciosa comida! 🍽️`);
-                                                            navigate('/home');
-                                                        } catch (err: any) {
-                                                            console.error("Error saving to history:", err);
-                                                            alert("Error al guardar en el historial: " + err.message);
-                                                        }
-                                                    }}
-                                                    className="btn-primary"
-                                                    style={{
-                                                        width: '100%',
-                                                        padding: '1.2rem',
-                                                        boxShadow: '0 4px 12px rgba(var(--accent-rgb), 0.3)',
-                                                        fontWeight: 700,
-                                                        letterSpacing: '1px',
-                                                        textTransform: 'uppercase'
-                                                    }}>
-                                                    SELECCIONAR ESTE RESTAURANTE
-                                                </button>
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        try {
-                                                            await savedForLaterService.saveForLater({
-                                                                place_id: place.id,
-                                                                name: place.name,
-                                                                rating: place.rating || 0,
-                                                                user_ratings_total: place.user_ratings_total || 0,
-                                                                types: place.types || [],
-                                                                address: place.address || '',
-                                                                main_photo: place.main_photo,
-                                                                summary: place.summary,
-                                                                opening_hours: place.opening_hours,
-                                                                google_maps_uri: place.google_maps_uri,
-                                                                website_uri: place.website_uri,
-                                                            });
-                                                            alert(`¡Has guardado ${place.name} para más tarde! ⏰`);
-                                                        } catch (err: any) {
-                                                            console.error("Error saving for later:", err);
-                                                            alert(err.message || "Error al guardar para más tarde.");
-                                                        }
-                                                    }}
-                                                    type="button"
-                                                    className="btn-secondary"
-                                                    style={{
-                                                        width: '100%',
-                                                        padding: '1rem',
-                                                        fontWeight: 600,
-                                                        border: '1px solid var(--border)',
-                                                        borderRadius: 'var(--radius-sm)'
-                                                    }}>
-                                                    ⏰ Guardar para más tarde
-                                                </button>
-                                            </div>
-
-                                            {/* ── Sección de reseñas ── */}
-                                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                                                    <span style={{ fontSize: '1rem' }}>💬</span>
-                                                    <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)' }}>Reseñas de la comunidad</span>
-                                                    {resenasPorRestaurante[place.id] && (
-                                                        <span style={{
-                                                            background: 'rgba(124,109,250,0.15)',
-                                                            color: 'var(--accent)',
-                                                            fontSize: '0.75rem',
-                                                            fontWeight: 600,
-                                                            padding: '0.15rem 0.5rem',
-                                                            borderRadius: '99px'
-                                                        }}>
-                                                            {resenasPorRestaurante[place.id].length}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {loadingResenas[place.id] ? (
-                                                    <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
-                                                        Cargando reseñas...
-                                                    </div>
-                                                ) : !resenasPorRestaurante[place.id] || resenasPorRestaurante[place.id].length === 0 ? (
-                                                    <div style={{
-                                                        textAlign: 'center', padding: '1.5rem',
-                                                        color: 'var(--muted)', fontSize: '0.875rem',
-                                                        background: 'var(--surface2)',
-                                                        borderRadius: 'var(--radius-sm)',
-                                                        border: '1px dashed var(--border)'
-                                                    }}>
-                                                        😶 Aún no hay reseñas para este restaurante.
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                                        {resenasPorRestaurante[place.id].map(resena => (
-                                                            <div key={resena.id} style={{
-                                                                background: 'var(--surface2)',
-                                                                border: '1px solid var(--border)',
-                                                                borderRadius: 'var(--radius-md)',
-                                                                padding: '1rem 1.1rem',
-                                                                display: 'flex',
-                                                                flexDirection: 'column',
-                                                                gap: '0.7rem',
-                                                                transition: 'border-color 0.2s'
-                                                            }}>
-                                                                {/* Cabecera: avatar + username */}
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                                                    <div style={{
-                                                                        width: '32px', height: '32px',
-                                                                        borderRadius: '50%',
-                                                                        background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
-                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                        fontSize: '0.8rem', fontWeight: 700, color: '#fff',
-                                                                        flexShrink: 0
-                                                                    }}>
-                                                                        {resena.username.charAt(0).toUpperCase()}
-                                                                    </div>
-                                                                    <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text)' }}>
-                                                                        {resena.username}
-                                                                    </span>
-                                                                </div>
-
-                                                                {/* Puntuaciones */}
-                                                                <div style={{
-                                                                    display: 'grid',
-                                                                    gridTemplateColumns: 'repeat(2, 1fr)',
-                                                                    gap: '0.4rem 1rem'
-                                                                }}>
-                                                                    {[
-                                                                        { label: 'Calidad', val: resena.calidad },
-                                                                        { label: 'Precio', val: resena.precio },
-                                                                        { label: 'Higiene', val: resena.higiene },
-                                                                        { label: 'Trato', val: resena.trato },
-                                                                    ].map(({ label, val }) => (
-                                                                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                                                            <span style={{ fontSize: '0.72rem', color: 'var(--muted)', minWidth: '46px' }}>{label}</span>
-                                                                            <div style={{ display: 'flex', gap: '1px' }}>
-                                                                                {Array.from({ length: 5 }).map((_, i) => (
-                                                                                    <span key={i} style={{
-                                                                                        fontSize: '0.7rem',
-                                                                                        color: i < val ? '#ffb400' : 'var(--muted)',
-                                                                                        opacity: i < val ? 1 : 0.3
-                                                                                    }}>★</span>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-
-                                                                {/* Comentario */}
-                                                                {resena.comentario && (
-                                                                    <p style={{
-                                                                        fontSize: '0.85rem',
-                                                                        color: 'var(--text)',
-                                                                        lineHeight: '1.5',
-                                                                        margin: 0,
-                                                                        fontStyle: 'italic',
-                                                                        opacity: 0.85
-                                                                    }}>
-                                                                        "{resena.comentario}"
-                                                                    </p>
-                                                                )}
-
-                                                                {/* Me gusta */}
-                                                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); handleMeGusta(place.id, resena.id); }}
-                                                                        title={resena.ha_dado_me_gusta ? "Quitar me gusta" : "Me gusta"}
-                                                                        style={{
-                                                                            background: 'none',
-                                                                            border: resena.ha_dado_me_gusta ? '1px solid #f472b6' : '1px solid var(--border)',
-                                                                            borderRadius: '99px',
-                                                                            padding: '0.3rem 0.75rem',
-                                                                            cursor: 'pointer',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            gap: '0.4rem',
-                                                                            fontSize: '0.8rem',
-                                                                            color: resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)',
-                                                                            transition: 'all 0.2s',
-                                                                        }}
-                                                                        onMouseEnter={e => {
-                                                                            (e.currentTarget as HTMLButtonElement).style.borderColor = '#f472b6';
-                                                                            (e.currentTarget as HTMLButtonElement).style.color = '#f472b6';
-                                                                        }}
-                                                                        onMouseLeave={e => {
-                                                                            if (!resena.ha_dado_me_gusta) {
-                                                                                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)';
-                                                                                (e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)';
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <span style={{ fontSize: '1rem', color: resena.ha_dado_me_gusta ? '#f472b6' : 'inherit' }}>
-                                                                            {resena.ha_dado_me_gusta ? '❤️' : '🤍'}
-                                                                        </span>
-                                                                        <span>{resena.me_gustas}</span>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                            <div className={`status-badge ${(place.opening_hours && place.opening_hours.open_now) || place.open_now ? 'status-open' : 'status-closed'}`}>
+                                                {(place.opening_hours && place.opening_hours.open_now) || place.open_now ? 'Abierto' : 'Cerrado'}
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

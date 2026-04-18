@@ -46,10 +46,21 @@ def delete_lista(db: Session, lista_id: int, user_id: str) -> bool:
     return True
 
 
-def create_lista(db: Session, user_id: str, nombre: str) -> ListaFavoritos:
+def create_lista(db: Session, user_id: str, nombre: str, icono: str = "Heart") -> ListaFavoritos:
     """Crea una nueva lista de favoritos para el usuario."""
-    lista = ListaFavoritos(user_id=user_id, nombre=nombre)
+    lista = ListaFavoritos(user_id=user_id, nombre=nombre, icono=icono)
     db.add(lista)
+    db.commit()
+    db.refresh(lista)
+    return lista
+
+
+def update_lista(db: Session, lista_id: int, user_id: str, nombre: str) -> Optional[ListaFavoritos]:
+    """Actualiza el nombre de una lista de favoritos."""
+    lista = get_lista_by_id(db, lista_id, user_id)
+    if not lista:
+        return None
+    lista.nombre = nombre
     db.commit()
     db.refresh(lista)
     return lista

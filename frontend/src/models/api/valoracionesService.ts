@@ -11,6 +11,7 @@ export interface ValoracionResponse extends ValoracionCreate {
     id: number;
     user_id: string;
     me_gustas: number;
+    fecha: string;
 }
 
 export interface ValoracionPublica {
@@ -23,8 +24,8 @@ export interface ValoracionPublica {
     comentario?: string;
     me_gustas: number;
     ha_dado_me_gusta: boolean;
+    fecha: string;
 }
-
 export interface ValoracionDetailedResponse {
     id: number;
     place_id: string;
@@ -33,7 +34,8 @@ export interface ValoracionDetailedResponse {
     higiene: number;
     trato: number;
     comentario?: string;
-    restaurant: any; // We can use the same Google Places any type or history any type
+    restaurant: any; 
+    fecha: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';

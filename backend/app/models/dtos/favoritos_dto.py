@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class ListaCreate(BaseModel):
     """Body del POST /api/favoritos/listas."""
     nombre: str
+    icono: str = "Heart"
 
 
 class ListaResponse(BaseModel):
@@ -11,8 +12,14 @@ class ListaResponse(BaseModel):
     id: int
     user_id: str
     nombre: str
+    icono: str = "Heart"
 
     model_config = {"from_attributes": True}
+
+
+class ListaUpdate(BaseModel):
+    """Body del PATCH /api/favoritos/listas/{lista_id}."""
+    nombre: str
 
 
 class FavoritoCreate(BaseModel):

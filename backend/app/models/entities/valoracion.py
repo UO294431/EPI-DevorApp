@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.infrastructure.database import Base
 
 class Valoracion(Base):
@@ -14,6 +15,7 @@ class Valoracion(Base):
     trato = Column(Integer, nullable=False, default=0)
     comentario = Column(String, nullable=True)
     me_gustas = Column(Integer, nullable=False, default=0)
+    fecha = Column(DateTime, server_default=func.now())
 
     # Relación para acceder fácilmente al place_id
     restaurante = relationship("Restaurante", lazy="joined")

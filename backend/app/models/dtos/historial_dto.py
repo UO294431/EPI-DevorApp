@@ -15,3 +15,9 @@ class HistorialEntryResponse(BaseModel):
     fecha_acceso: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PopularPlacesRequest(BaseModel):
+    """Body para solicitar lugares populares sin exponer ubicación en URL."""
+    limit: int = 5
+    location: str | None = None

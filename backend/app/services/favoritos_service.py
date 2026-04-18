@@ -18,15 +18,22 @@ def get_lista_by_id(db: Session, lista_id: int, user_id: str) -> Optional[ListaF
     return favoritos_repo.get_lista_by_id(db, lista_id, user_id)
 
 
-def create_lista(db: Session, user_id: str, nombre: str) -> ListaFavoritos:
+def create_lista(db: Session, user_id: str, nombre: str, icono: str = "Heart") -> ListaFavoritos:
     existente = favoritos_repo.get_lista_by_nombre(db, nombre, user_id)
     if existente:
         raise ValueError(f'Ya existe una lista de favoritos llamada "{nombre}".')
-    return favoritos_repo.create_lista(db, user_id, nombre)
+    return favoritos_repo.create_lista(db, user_id, nombre, icono)
 
 
 def delete_lista(db: Session, lista_id: int, user_id: str) -> bool:
     return favoritos_repo.delete_lista(db, lista_id, user_id)
+
+
+def update_lista(db: Session, lista_id: int, user_id: str, nombre: str) -> Optional[ListaFavoritos]:
+    existente = favoritos_repo.get_lista_by_nombre(db, nombre, user_id)
+    if existente and existente.id != lista_id:
+        raise ValueError(f'Ya existe otra lista de favoritos llamada "{nombre}".')
+    return favoritos_repo.update_lista(db, lista_id, user_id, nombre)
 
 
 def get_favoritos(db: Session, lista_id: int) -> List[Favorito]:

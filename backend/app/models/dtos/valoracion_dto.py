@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 from typing import Optional
 
 class ValoracionBase(BaseModel):
@@ -16,6 +17,7 @@ class ValoracionResponse(ValoracionBase):
     id: int
     user_id: str
     me_gustas: int = 0
+    fecha: datetime
 
     model_config = {
         "from_attributes": True
@@ -32,6 +34,7 @@ class ValoracionPublicaResponse(BaseModel):
     comentario: Optional[str] = None
     me_gustas: int = 0
     ha_dado_me_gusta: bool = False
+    fecha: datetime
 
     model_config = {
         "from_attributes": True

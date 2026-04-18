@@ -4,6 +4,7 @@ export interface FavoritosList {
     id: number;
     user_id: string;
     nombre: string;
+    icono: string;
 }
 
 export interface FavoritoItem {
@@ -27,16 +28,30 @@ export const favoritosService = {
         return await response.json();
     },
 
-    crearLista: async (nombre: string): Promise<FavoritosList> => {
+    crearLista: async (nombre: string, icono: string = 'Heart'): Promise<FavoritosList> => {
         const response = await fetch(`${API_URL}/favoritos/listas`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ nombre, icono }),
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || 'Error al crear la lista');
+        }
+        return await response.json();
+    },
+
+    updateLista: async (listaId: number, nombre: string): Promise<FavoritosList> => {
+        const response = await fetch(`${API_URL}/favoritos/listas/${listaId}`, {
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ nombre }),
         });
         if (!response.ok) {
             const data = await response.json();
-            throw new Error(data.detail || 'Error al crear la lista');
+            throw new Error(data.detail || 'Error al actualizar la lista');
         }
         return await response.json();
     },

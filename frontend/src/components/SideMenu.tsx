@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
   Menu, X, Home, Star, Heart, Clock, MessageSquare, LogOut,
-  Moon, Sun, Type
+  Moon, Sun, Type, Bookmark
 } from 'lucide-react';
 import { authService } from '../models/api/authService';
 import { useLogout } from '../controllers/hooks/useLogout';
@@ -100,10 +100,13 @@ const SideMenu: React.FC = () => {
            <button className={`sidemenu-item ${location.pathname==='/favorites'?'active':''}`} onClick={()=>goTo('/favorites')} style={{ '--idx': 2 } as React.CSSProperties}>
              <Heart size={18} /> Favoritos
            </button>
-           <button className={`sidemenu-item ${location.pathname==='/history'?'active':''}`} onClick={()=>goTo('/history')} style={{ '--idx': 3 } as React.CSSProperties}>
+           <button className={`sidemenu-item ${location.pathname==='/saved-for-later'?'active':''}`} onClick={()=>goTo('/saved-for-later')} style={{ '--idx': 3 } as React.CSSProperties}>
+             <Bookmark size={18} /> Para más tarde
+           </button>
+           <button className={`sidemenu-item ${location.pathname==='/history'?'active':''}`} onClick={()=>goTo('/history')} style={{ '--idx': 4 } as React.CSSProperties}>
              <Clock size={18} /> Historial
            </button>
-           <button className={`sidemenu-item ${location.pathname==='/mis-valoraciones'?'active':''}`} onClick={()=>goTo('/mis-valoraciones')} style={{ '--idx': 4 } as React.CSSProperties}>
+           <button className={`sidemenu-item ${location.pathname==='/mis-valoraciones'?'active':''}`} onClick={()=>goTo('/mis-valoraciones')} style={{ '--idx': 5 } as React.CSSProperties}>
              <MessageSquare size={18} /> Valoraciones
            </button>
          </nav>

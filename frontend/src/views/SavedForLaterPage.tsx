@@ -1,15 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { 
+    Clock, Search, Star, UtensilsCrossed, X, MoreVertical, 
+    Map, Globe, Trash2, ChevronRight, Plus, Bookmark
+} from 'lucide-react';
 import { savedForLaterService } from '../models/api/savedForLaterService';
 import type { SavedForLaterEntry } from '../models/api/savedForLaterService';
 import { historialService } from '../models/api/historialService';
+import TopBar from '../components/TopBar';
+import RestaurantDetailView from '../components/RestaurantDetailView';
 
+// ── Item Menu (for restaurants) ──────────────────────────────────────────────
+interface ItemMenuProps {
+    onDelete: () => void;
+    onHistory: () => void;
+    onDetails: () => void;
+}
+
+const ItemMenu: React.FC<ItemMenuProps> = ({ onDelete, onHistory, onDetails }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <button
+                onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '6px' }}
+            >
+                <MoreVertical size={18} />
+            </button>
+            {open && (
+                <div style={{
+                    position: 'absolute', right: 0, top: '100%',
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    borderRadius: 8, minWidth: 160, zIndex: 100,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    overflow: 'hidden',
+                    animation: 'fadeSlideIn 0.1s ease'
+                }}>
+                    <button onClick={() => { setOpen(false); onDetails(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: '0.85rem' }}>
+                        <Map size={14} /> Ver detalles
+                    </button>
+                    <button onClick={() => { setOpen(false); onHistory(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-light)', fontSize: '0.85rem' }}>
+                        <Clock size={14} /> Mover a historial
+                    </button>
+                    <button onClick={() => { setOpen(false); onDelete(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.85rem' }}>
+                        <X size={14} /> Quitar de la lista
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 const SavedForLaterPage: React.FC = () => {
     const navigate = useNavigate();
-    const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
     const [savedEntries, setSavedEntries] = useState<SavedForLaterEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<SavedForLaterEntry | null>(null);
+
+    // Sync selected entry with URL parameter 'detail'
+    useEffect(() => {
+        const detailId = searchParams.get('detail');
+        if (detailId) {
+            const entry = savedEntries.find(e => e.id === detailId);
+            if (entry) {
+                setSelectedEntryForDetail(entry);
+            }
+        } else {
+            setSelectedEntryForDetail(null);
+        }
+    }, [searchParams, savedEntries]);
 
     useEffect(() => {
         const fetchSaved = async () => {
@@ -18,320 +91,205 @@ const SavedForLaterPage: React.FC = () => {
                 const data = await savedForLaterService.getSaved();
                 setSavedEntries(data);
             } catch (err: any) {
-                console.error("Error fetching saved later:", err);
-                setError(err.message || "No se pudieron cargar los restaurantes guardados.");
+                setError(err.message || "No se pudieron cargar los lugares guardados.");
             } finally {
                 setLoading(false);
             }
         };
-
         fetchSaved();
     }, []);
 
-    const handleRemoveFromSavedForLater = async (id: string, name: string, showNotification: boolean = true) => {
+    const handleRemoveEntry = async (id: string) => {
         try {
             await savedForLaterService.deleteSaved(id);
             setSavedEntries(prev => prev.filter(item => item.id !== id));
-            if (showNotification) {
-                alert(`"${name}" ha sido eliminado de tu lista para más tarde.`);
-            }
         } catch (err: any) {
-            console.error("Error deleting from saved later:", err);
-            alert("Error al eliminar de la lista: " + err.message);
+            alert("Error al eliminar: " + err.message);
         }
     };
 
-    let content;
-    if (loading) {
-        content = (
-            <div style={{ textAlign: 'center', padding: '3rem' }}>
-                <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: '30px', height: '30px', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }}></div>
-                <p>Cargando tus lugares pendientes...</p>
-            </div>
+    const filteredEntries = useMemo(() => {
+        if (!searchTerm.trim()) return savedEntries;
+        const lowSearch = searchTerm.toLowerCase();
+        return savedEntries.filter(entry => 
+            entry.name.toLowerCase().includes(lowSearch) ||
+            entry.address.toLowerCase().includes(lowSearch)
         );
-    } else if (error) {
-        content = (
-            <div className="message error" style={{ margin: '1rem 0' }}>
-                {error}
-                <button 
-                  onClick={() => globalThis.location.reload()} 
-                  style={{ marginLeft: '1rem', background: 'none', border: '1px solid currentColor', color: 'inherit', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Reintentar
-                </button>
-            </div>
-        );
-    } else if (savedEntries.length === 0) {
-        content = (
-            <div style={{
-                textAlign: 'center',
-                padding: '3rem 1rem',
-                color: 'var(--muted)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '1rem'
-            }}>
-                <span style={{ fontSize: '3rem' }}>⏰</span>
-                <p style={{ fontSize: '1rem', margin: 0 }}>
-                    No tienes restaurantes guardados para más tarde.
-                </p>
-                <p style={{ fontSize: '0.85rem', margin: 0 }}>
-                    Añade uno desde la búsqueda de recomendaciones.
-                </p>
-            </div>
-        );
-    } else {
-        content = (
-            <div style={{ marginTop: '1rem', width: '100%', animation: 'fadeSlideIn 0.5s ease', paddingBottom: '3rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.8rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Lugares pendientes</h2>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{savedEntries.length} en total</span>
-                </div>
+    }, [savedEntries, searchTerm]);
 
-                <div style={{
-                    display: 'flex', flexDirection: 'column', gap: '1px',
-                    background: 'var(--border)', borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden', border: '1px solid var(--border)'
-                }}>
-                    {savedEntries.map((entry) => (
-                        <div key={entry.id} className="restaurant-card-container" style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-                            <div
-                                className="restaurant-card"
-                                onClick={() => setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)}
-                                style={{
-                                    display: 'flex', alignItems: 'center',
-                                    padding: '1.5rem', background: 'transparent',
-                                    gap: '1.5rem', transition: 'all 0.2s ease', cursor: 'pointer'
+    if (selectedEntryForDetail) {
+        return (
+            <div className="page-screen">
+                <RestaurantDetailView 
+                    restaurant={selectedEntryForDetail as any}
+                    onBack={() => navigate(-1)}
+                    actions={
+                        <div className="detail-actions-column">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await historialService.addToHistorial(selectedEntryForDetail.place_id);
+                                        await handleRemoveEntry(selectedEntryForDetail.id);
+                                        alert(`¡Has seleccionado ${selectedEntryForDetail.name}!\n\n¡Que disfrutes de una deliciosa comida! 🍽️`);
+                                        navigate('/home');
+                                    } catch (err: any) {
+                                        alert("Error al seleccionar: " + err.message);
+                                    }
                                 }}
-                            >
-                                <div style={{
-                                    width: '80px', height: '80px', borderRadius: '12px',
-                                    overflow: 'hidden', background: 'var(--surface2)',
-                                    flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                className="btn-detail-main"
+                                style={{
+                                    boxShadow: '0 4px 12px rgba(var(--accent-rgb), 0.3)',
+                                    fontWeight: 700,
+                                    letterSpacing: '1px',
+                                    textTransform: 'uppercase'
                                 }}>
-                                    {entry.main_photo ? (
-                                        <img src={entry.main_photo} alt={entry.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <span style={{ fontSize: '2rem' }}>🍴</span>
-                                    )}
-                                </div>
-
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)' }}>{entry.name}</div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                        {Array.from({ length: 5 }).map((_, i) => (
-                                            <span key={`star-${entry.id}-${i}`} style={{
-                                                color: i < Math.floor(entry.rating || 0) ? '#ffb400' : 'var(--muted)',
-                                                fontSize: '0.9rem',
-                                                opacity: i < Math.floor(entry.rating || 0) ? 1 : 0.3
-                                            }}>
-                                                ★
-                                            </span>
-                                        ))}
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--muted)', marginLeft: '0.4rem' }}>
-                                            {entry.rating} ({entry.user_ratings_total})
-                                        </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--accent2)', fontWeight: 500 }}>
-                                        {entry.types && entry.types.length > 0
-                                            ? entry.types[0].replaceAll('_', ' ').replaceAll(/\b\w/g, (l: string) => l.toUpperCase())
-                                            : 'Restaurante'}
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{entry.address}</div>
-
-                                </div>
-                                <div style={{
-                                    color: 'var(--muted)', fontSize: '1.2rem', opacity: 0.5,
-                                    transform: expandedEntryId === entry.id ? 'rotate(90deg)' : 'none',
-                                    transition: 'transform 0.3s ease'
-                                }}>›</div>
-                            </div>
-
-                            {expandedEntryId === entry.id && (
-                                <div style={{
-                                    padding: '1.5rem',
-                                    animation: 'fadeSlideIn 0.3s ease',
-                                    background: 'rgba(var(--accent-rgb), 0.03)',
-                                    borderTop: '1px solid var(--border)',
-                                    display: 'flex', flexDirection: 'column', gap: '1.5rem'
-                                }}>
-                                    {entry.summary && (
-                                        <div style={{
-                                            fontSize: '0.95rem', color: 'var(--text)',
-                                            lineHeight: '1.6', padding: '1rem',
-                                            borderLeft: '3px solid var(--accent)',
-                                            background: 'var(--surface2)',
-                                            borderRadius: '0 var(--radius-sm) var(--radius-sm) 0'
-                                        }}>
-                                            <span style={{ fontSize: '1.2rem', marginRight: '0.5rem', verticalAlign: 'middle' }}>💬</span>
-                                            {entry.summary}
-                                        </div>
-                                    )}
-
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                        gap: '1.5rem', marginBottom: '1rem'
-                                    }}>
-                                        {entry.opening_hours && entry.opening_hours.length > 0 && (
-                                            <div style={{
-                                                background: 'var(--surface2)', padding: '1rem',
-                                                borderRadius: 'var(--radius-md)', border: '1px solid var(--border)'
-                                            }}>
-                                                <div style={{ fontWeight: 700, marginBottom: '0.8rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                                                    🕒 Horario de apertura
-                                                </div>
-                                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                                    {entry.opening_hours.slice(0, 7).map((day: string, idx: number) => {
-                                                        const parts = day.split(': ');
-                                                        const dayName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase() : '';
-                                                        const hoursRaw = parts[1] || '';
-                                                        const shifts = hoursRaw.split(', ');
-                                                        return (
-                                                            <li key={`${entry.id}-day-${idx}`} style={{
-                                                                fontSize: '0.8rem', opacity: 0.8, padding: '0.4rem 0',
-                                                                borderBottom: idx < entry.opening_hours!.length - 1 ? '1px solid var(--border)' : 'none',
-                                                                display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'
-                                                            }}>
-                                                                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{dayName} :</span>
-                                                                <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                    {shifts.map((s, sIdx) => (
-                                                                        <span key={`${entry.id}-day-${idx}-shift-${sIdx}`}>{s}</span>
-                                                                    ))}
-                                                                </div>
-                                                            </li>
-                                                        );
-                                                    })}
-                                                </ul>
-                                            </div>
-                                        )}
-
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                            <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.9rem' }}>📍 Enlaces de interés</div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                                {entry.google_maps_uri && (
-                                                    <a href={entry.google_maps_uri} target="_blank" rel="noopener noreferrer"
-                                                        className="btn-secondary"
-                                                        style={{
-                                                            fontSize: '0.85rem', display: 'flex', alignItems: 'center',
-                                                            gap: '0.6rem', padding: '0.6rem 0.8rem',
-                                                            background: 'var(--surface2)', color: 'var(--accent)',
-                                                            border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                                                            textDecoration: 'none', transition: 'all 0.2s ease'
-                                                        }}>
-                                                        <span>🗺️</span> Google Maps
-                                                    </a>
-                                                )}
-                                                {entry.website_uri && (
-                                                    <a href={entry.website_uri} target="_blank" rel="noopener noreferrer"
-                                                        className="btn-secondary"
-                                                        style={{
-                                                            fontSize: '0.85rem', display: 'flex', alignItems: 'center',
-                                                            gap: '0.6rem', padding: '0.6rem 0.8rem',
-                                                            background: 'var(--surface2)', color: 'var(--accent)',
-                                                            border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                                                            textDecoration: 'none', transition: 'all 0.2s ease'
-                                                        }}>
-                                                        <span>🌐</span> Sitio Web
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
-                                        <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                try {
-                                                    await historialService.addToHistorial(entry.place_id);
-                                                    alert(`¡Hora de comer en ${entry.name}!\n\n¡Que lo disfrutes! 🍽️`);
-                                                    await handleRemoveFromSavedForLater(entry.id, entry.name, false);
-                                                    navigate('/home');
-                                                } catch (err: any) {
-                                                    console.error("Error saving to history:", err);
-                                                    alert("Error al seleccionar: " + err.message);
-                                                }
-                                            }}
-                                            className="btn-primary"
-                                            style={{
-                                                width: '100%',
-                                                padding: '1rem',
-                                                boxShadow: '0 4px 12px rgba(var(--accent-rgb), 0.3)',
-                                                fontWeight: 700,
-                                                letterSpacing: '1px',
-                                                textTransform: 'uppercase'
-                                            }}
-                                        >
-                                            ¡ELEGIR ESTE LUGAR!
-                                        </button>
-
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemoveFromSavedForLater(entry.id, entry.name);
-                                            }}
-                                            className="btn-secondary"
-                                            style={{
-                                                width: '100%',
-                                                padding: '0.8rem',
-                                                background: 'rgba(255, 59, 48, 0.1)',
-                                                color: '#ff3b30',
-                                                border: '1px solid rgba(255, 59, 48, 0.3)',
-                                                borderRadius: 'var(--radius-sm)',
-                                                fontWeight: 600
-                                            }}
-                                        >
-                                            🗑️ Eliminar de la lista
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                                SELECCIONAR ESTE RESTAURANTE
+                            </button>
+                            <button className="btn-detail-outline danger" onClick={async () => {
+                                if (globalThis.confirm(`¿Quitar ${selectedEntryForDetail.name} de la lista?`)) {
+                                    await handleRemoveEntry(selectedEntryForDetail.id);
+                                    setSearchParams({});
+                                }
+                            }}>
+                                <Trash2 size={16} /> Quitar de la lista
+                            </button>
                         </div>
-                    ))}
-                </div>
+                    }
+                />
             </div>
         );
     }
 
     return (
-        <div className="app-container" style={{ alignItems: 'flex-start', paddingTop: '4rem' }}>
-            <div className="auth-card" style={{ maxWidth: '600px', width: '100%' }}>
-                <div className="auth-header">
-                    <div className="auth-logo">⏰</div>
-                    <h1>Para más tarde</h1>
-                    <p>Restaurantes que has guardado para otra ocasión</p>
+        <div className="page-screen">
+            <TopBar showMenu={true} />
+
+            <main className="home-body" style={{ padding: '0 var(--space-5) var(--space-8)' }}>
+                {/* Header Section */}
+                <div style={{ paddingTop: 'var(--space-6)', textAlign: 'center', marginBottom: '2rem' }}>
+                    <div style={{
+                        width: 64, height: 64, borderRadius: 18,
+                        background: 'linear-gradient(135deg, #d4a017, #f39c12)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 1rem', boxShadow: '0 8px 24px rgba(212,160,23,0.3)',
+                        animation: 'scaleUp 0.3s ease'
+                    }}>
+                        <Bookmark size={28} color="white" />
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>Para más tarde</h1>
+                    <p style={{ margin: '0.4rem 0 0', fontSize: '0.95rem', color: 'var(--muted)' }}>
+                        Restaurantes que quieres visitar
+                    </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/home')}
-                        className="btn-primary"
-                        style={{ flex: 1, background: 'var(--surface2)', color: 'var(--text)', boxShadow: 'none' }}
-                    >
-                        Volver
-                    </button>
-                    <button
-                        type="button"
+                {/* Search Bar */}
+                <div className="internal-search-box">
+                    <Search className="search-icon" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar en la lista..." 
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: '3rem' }}>
+                        <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: 30, height: 30, animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+                        <p style={{ color: 'var(--muted)' }}>Cargando lugares pendientes...</p>
+                    </div>
+                ) : error ? (
+                    <div className="message error">{error}</div>
+                ) : (
+                    <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                        {/* Summary Row */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                            <span style={{ fontSize: 'var(--font-sm)', color: 'var(--muted)', fontWeight: 600 }}>
+                                {savedEntries.length} {savedEntries.length === 1 ? 'restaurante pendiente' : 'restaurantes pendientes'}
+                            </span>
+                        </div>
+
+                        {/* List Content */}
+                        {savedEntries.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--muted)', background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
+                                <Bookmark size={48} style={{ opacity: 0.1, marginBottom: '1rem' }} />
+                                <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Tu lista está vacía</p>
+                                <p style={{ fontSize: 'var(--font-sm)' }}>Guarda restaurantes desde las recomendaciones para verlos aquí.</p>
+                            </div>
+                        ) : filteredEntries.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted)' }}>
+                                <Search size={40} style={{ opacity: 0.1, marginBottom: '1rem' }} />
+                                <p>No hay resultados para "{searchTerm}"</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                {filteredEntries.map((entry: any) => (
+                                    <div key={entry.id} style={{ marginBottom: '0.75rem' }}>
+                                        <div 
+                                            className="restaurant-compact-card"
+                                            onClick={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
+                                        >
+                                            <div className="compact-img-box">
+                                                {entry.main_photo ? (
+                                                    <img src={entry.main_photo} alt={entry.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />
+                                                )}
+                                            </div>
+
+                                            <div className="compact-info">
+                                                <div className="compact-name">{entry.name}</div>
+                                                <div className="compact-meta">
+                                                    <div className="compact-rating">
+                                                        <Star size={12} fill="currentColor" /> {entry.rating}
+                                                    </div>
+                                                    <span>({entry.user_ratings_total})</span>
+                                                    {entry.types && entry.types[0] && <span>• {entry.types[0].charAt(0).toUpperCase() + entry.types[0].slice(1).replaceAll('_', ' ')}</span>}
+                                                </div>
+                                                <div className="compact-address">{entry.address}</div>
+                                            </div>
+
+                                            <ItemMenu 
+                                                onDelete={async () => {
+                                                    if (globalThis.confirm(`¿Quitar ${entry.name}?`)) {
+                                                        await handleRemoveEntry(entry.id);
+                                                    }
+                                                }}
+                                                onHistory={async () => {
+                                                    await historialService.addToHistorial(entry.place_id);
+                                                    await handleRemoveEntry(entry.id);
+                                                    navigate('/home');
+                                                }}
+                                                onDetails={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Footer Action */}
+                <div style={{ marginTop: '2rem' }}>
+                    <button 
                         onClick={() => navigate('/recommend-restaurants')}
-                        className="btn-primary"
-                        style={{ flex: 1, background: 'var(--accent)', color: 'white' }}
+                        style={{
+                            width: '100%', padding: '16px',
+                            background: 'linear-gradient(135deg, var(--accent), #4f46e5)',
+                            color: 'white', border: 'none', borderRadius: 'var(--radius-lg)',
+                            fontWeight: 700, fontSize: '1rem', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
+                            boxShadow: '0 8px 24px rgba(var(--accent-rgb), 0.3)',
+                            transition: 'transform 0.2s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                        Buscar lugares
+                        <Search size={20} /> Buscar más restaurantes
                     </button>
                 </div>
-
-                {content}
-
-                <style>{`
-                    .restaurant-card:hover { background: rgba(0,0,0,0.03) !important; }
-                    [data-theme='dark'] .restaurant-card:hover { background: rgba(255,255,255,0.03) !important; }
-                `}</style>
-            </div>
-
+            </main>
         </div>
     );
 };

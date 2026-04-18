@@ -44,7 +44,8 @@ def obtener_resenas_restaurante(db: Session, place_id: str, current_user_id: str
             trato=v.trato,
             comentario=v.comentario,
             me_gustas=v.me_gustas or 0,
-            ha_dado_me_gusta=v.id in likes_usuario
+            ha_dado_me_gusta=v.id in likes_usuario,
+            fecha=v.fecha
         ))
     return result
 
@@ -70,6 +71,7 @@ def dar_me_gusta(db: Session, user_id: str, valoracion_id: int) -> ValoracionPub
         trato=valoracion.trato,
         comentario=valoracion.comentario,
         me_gustas=valoracion.me_gustas or 0,
-        ha_dado_me_gusta=ha_quedado_like
+        ha_dado_me_gusta=ha_quedado_like,
+        fecha=valoracion.fecha
     )
 

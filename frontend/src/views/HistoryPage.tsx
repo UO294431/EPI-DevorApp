@@ -1,9 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+    Clock, Search, Star, UtensilsCrossed, X, MoreVertical,
+    Filter, ChevronDown, ChevronRight, Heart, MessageSquare,
+    Trash2, Edit3, Map, FolderHeart, Plus, Bookmark, Coffee,
+    Pizza, Wine, Sandwich, Flame, MapPin, Trophy, Smile,
+    ThumbsUp, Gift, Cake, ShoppingBag, Moon, Sun, Zap, Globe
+} from 'lucide-react';
 import { historialService } from '../models/api/historialService';
 import { favoritosService } from '../models/api/favoritosService';
 import { valoracionesService } from '../models/api/valoracionesService';
 import type { FavoritosList } from '../models/api/favoritosService';
+import TopBar from '../components/TopBar';
+import RestaurantDetailView from '../components/RestaurantDetailView';
 
 interface HistoryEntry {
     id: string;
@@ -21,21 +30,141 @@ interface HistoryEntry {
     place_id: string;
 }
 
+// ── Icons Logic (Shared with FavoritesPage) ──────────────────────────────────
+const ICONS: { name: string; component: React.FC<any> }[] = [
+    { name: 'Heart', component: Heart },
+    { name: 'Star', component: Star },
+    { name: 'Bookmark', component: Bookmark },
+    { name: 'Clock', component: Clock },
+    { name: 'Coffee', component: Coffee },
+    { name: 'Pizza', component: Pizza },
+    { name: 'UtensilsCrossed', component: UtensilsCrossed },
+    { name: 'Wine', component: Wine },
+    { name: 'Sandwich', component: Sandwich },
+    { name: 'Flame', component: Flame },
+    { name: 'MapPin', component: MapPin },
+    { name: 'Trophy', component: Trophy },
+    { name: 'Smile', component: Smile },
+    { name: 'ThumbsUp', component: ThumbsUp },
+    { name: 'Gift', component: Gift },
+    { name: 'Cake', component: Cake },
+    { name: 'ShoppingBag', component: ShoppingBag },
+    { name: 'Moon', component: Moon },
+    { name: 'Sun', component: Sun },
+    { name: 'Zap', component: Zap },
+];
+
+const ICON_COLORS = [
+    '#b07d3a', '#5b6af0', '#2ebd7e', '#e05252',
+    '#a259e6', '#e0823d', '#3dadd4', '#c4b347',
+];
+
+function getIconColor(iconName: string): string {
+    const idx = ICONS.findIndex(i => i.name === iconName);
+    return ICON_COLORS[idx % ICON_COLORS.length] ?? '#b07d3a';
+}
+
+function renderIconComponent(name: string, size = 22, color = 'white') {
+    const found = ICONS.find(i => i.name === name);
+    if (!found) return <Heart size={size} color={color} />;
+    const IconComp = found.component;
+    return <IconComp size={size} color={color} />;
+}
+
+// ── Item Menu (Actions for history entries) ──────────────────────────────────
+interface ItemMenuProps {
+    isRated: boolean;
+    onRate: () => void;
+    onFavorite: () => void;
+    onRechoose: () => void;
+    onDelete: () => void;
+    onDetails: () => void;
+}
+
+const ItemMenu: React.FC<ItemMenuProps> = ({ isRated, onRate, onFavorite, onRechoose, onDelete, onDetails }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <button
+                onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '6px' }}
+            >
+                <MoreVertical size={18} />
+            </button>
+            {open && (
+                <div style={{
+                    position: 'absolute', right: 0, top: '100%',
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    borderRadius: 8, minWidth: 180, zIndex: 100,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    overflow: 'hidden',
+                    animation: 'fadeSlideIn 0.1s ease'
+                }}>
+                    <button onClick={() => { setOpen(false); onDetails(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: '0.85rem' }}>
+                        <Map size={14} /> Ver detalles
+                    </button>
+                    <button onClick={() => { setOpen(false); onRechoose(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-light)', fontSize: '0.85rem' }}>
+                        <UtensilsCrossed size={14} /> Volver a elegir
+                    </button>
+                    <button onClick={() => { setOpen(false); onFavorite(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: '0.85rem' }}>
+                        <Heart size={14} /> Añadir a favoritos
+                    </button>
+                    <button onClick={() => { setOpen(false); onRate(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: isRated ? 'var(--text)' : 'var(--accent-light)', fontSize: '0.85rem' }}>
+                        {isRated ? <MessageSquare size={14} /> : <Star size={14} />} {isRated ? 'Editar reseña' : 'Valorar restaurante'}
+                    </button>
+                    <button onClick={() => { setOpen(false); onDelete(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.85rem', borderTop: '1px solid var(--border)' }}>
+                        <Trash2 size={14} /> Eliminar del historial
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 const HistoryPage: React.FC = () => {
     const navigate = useNavigate();
-    const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
     const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
     const [ratedPlaceIds, setRatedPlaceIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Estados para Valorar Restaurante
+    // Filter and Detail state
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'rated' | 'unrated'>('all');
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<HistoryEntry | null>(null);
+
+    // Sync detail with URL
+    useEffect(() => {
+        const detailId = searchParams.get('detail');
+        if (detailId) {
+            const entry = historyEntries.find(e => e.place_id === detailId);
+            if (entry) {
+                setSelectedEntryForDetail(entry);
+            }
+        } else {
+            setSelectedEntryForDetail(null);
+        }
+    }, [searchParams, historyEntries]);
+
+    // Modals state
     const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
     const [selectedEntryForRating, setSelectedEntryForRating] = useState<HistoryEntry | null>(null);
     const [ratingVal, setRatingVal] = useState({ calidad: 0, precio: 0, higiene: 0, trato: 0 });
     const [ratingComment, setRatingComment] = useState('');
 
-    // Estados para Añadir a Favoritos
     const [isFavModalOpen, setIsFavModalOpen] = useState(false);
     const [favLists, setFavLists] = useState<FavoritosList[]>([]);
     const [selectedEntryForFav, setSelectedEntryForFav] = useState<HistoryEntry | null>(null);
@@ -48,9 +177,6 @@ const HistoryPage: React.FC = () => {
             try {
                 setLoading(true);
                 const data = await historialService.getHistorial();
-                
-                // Mapear la respuesta del backend (que tiene { id, restaurant: {...} }) 
-                // al formato que espera la vista
                 const mappedEntries: HistoryEntry[] = data.map((item: any) => ({
                     id: String(item.id),
                     name: item.restaurant.name,
@@ -66,10 +192,14 @@ const HistoryPage: React.FC = () => {
                     visited_at: item.fecha_acceso,
                     place_id: item.place_id,
                 }));
-
                 setHistoryEntries(mappedEntries);
+
+                if (mappedEntries.length > 0) {
+                    const firstDate = new Date(mappedEntries[0].visited_at || '');
+                    const firstKey = `${firstDate.getMonth()}-${firstDate.getFullYear()}`;
+                    setExpandedGroups(new Set([firstKey]));
+                }
             } catch (err: any) {
-                console.error("Error fetching history:", err);
                 setError(err.message || "No se pudo cargar el historial.");
             } finally {
                 setLoading(false);
@@ -89,26 +219,73 @@ const HistoryPage: React.FC = () => {
         fetchRatings();
     }, []);
 
+    const toggleGroup = (key: string) => {
+        setExpandedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
+
+    const cycleFilter = () => {
+        if (statusFilter === 'all') setStatusFilter('unrated');
+        else if (statusFilter === 'unrated') setStatusFilter('rated');
+        else setStatusFilter('all');
+    };
+
+    const groups = useMemo(() => {
+        const filtered = historyEntries.filter(entry => {
+            const matchesSearch = !searchTerm.trim() ||
+                entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                entry.address.toLowerCase().includes(searchTerm.toLowerCase());
+
+            const isRated = ratedPlaceIds.has(entry.place_id);
+            const matchesStatus = statusFilter === 'all' ||
+                (statusFilter === 'rated' && isRated) ||
+                (statusFilter === 'unrated' && !isRated);
+
+            return matchesSearch && matchesStatus;
+        });
+
+        const grouped: Record<string, { label: string, entries: HistoryEntry[] }> = {};
+        const months = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+
+        filtered.forEach(entry => {
+            const date = new Date(entry.visited_at || '');
+            const key = `${date.getMonth()}-${date.getFullYear()}`;
+            if (!grouped[key]) {
+                grouped[key] = { label: `${months[date.getMonth()]} ${date.getFullYear()}`, entries: [] };
+            }
+            grouped[key].entries.push(entry);
+        });
+
+        return Object.entries(grouped).sort((a, b) => {
+            const [mA, yA] = a[0].split('-').map(Number);
+            const [mB, yB] = b[0].split('-').map(Number);
+            return (yB * 12 + mB) - (yA * 12 + mA);
+        });
+    }, [historyEntries, searchTerm, statusFilter, ratedPlaceIds]);
+
+    const unratedCount = useMemo(() => {
+        return historyEntries.filter(e => !ratedPlaceIds.has(e.place_id)).length;
+    }, [historyEntries, ratedPlaceIds]);
+
+    // ── Handlers ─────────────────────────────────────────────────────────────
     const handleRateClick = async (entry: HistoryEntry) => {
         setSelectedEntryForRating(entry);
         setRatingVal({ calidad: 0, precio: 0, higiene: 0, trato: 0 });
         setRatingComment('');
         setIsRatingModalOpen(true);
         setModalLoading(true);
-        
         try {
             const existingRating = await valoracionesService.obtenerMiValoracion(entry.place_id);
             if (existingRating) {
-                setRatingVal({
-                    calidad: existingRating.calidad,
-                    precio: existingRating.precio,
-                    higiene: existingRating.higiene,
-                    trato: existingRating.trato
-                });
+                setRatingVal({ calidad: existingRating.calidad, precio: existingRating.precio, higiene: existingRating.higiene, trato: existingRating.trato });
                 setRatingComment(existingRating.comentario || '');
             }
         } catch (error) {
-            console.error("Error al obtener la valoración existente:", error);
+            console.error("Error fetching existing rating:", error);
         } finally {
             setModalLoading(false);
         }
@@ -116,26 +293,18 @@ const HistoryPage: React.FC = () => {
 
     const handleRatingSubmit = async () => {
         if (!selectedEntryForRating) return;
-        
         try {
             setModalLoading(true);
             await valoracionesService.valorarRestaurante({
                 place_id: selectedEntryForRating.place_id,
-                calidad: ratingVal.calidad,
-                precio: ratingVal.precio,
-                higiene: ratingVal.higiene,
-                trato: ratingVal.trato,
+                calidad: ratingVal.calidad, precio: ratingVal.precio,
+                higiene: ratingVal.higiene, trato: ratingVal.trato,
                 comentario: ratingComment
             });
-            setRatedPlaceIds(prev => {
-                const newSet = new Set(prev);
-                newSet.add(selectedEntryForRating.place_id);
-                return newSet;
-            });
+            setRatedPlaceIds(prev => new Set([...prev, selectedEntryForRating.place_id]));
             alert(`¡Gracias por valorar ${selectedEntryForRating.name}! 🌟`);
             setIsRatingModalOpen(false);
         } catch (error: any) {
-            console.error("Error al guardar la valoración:", error);
             alert(error.message || "Hubo un error al guardar la valoración.");
         } finally {
             setModalLoading(false);
@@ -149,11 +318,9 @@ const HistoryPage: React.FC = () => {
         try {
             const lists = await favoritosService.getListas();
             setFavLists(lists);
-            if (lists.length === 0) {
-                setIsCreatingList(true);
-            }
+            if (lists.length === 0) setIsCreatingList(true);
         } catch (err) {
-            console.error("Error fetching favorite lists:", err);
+            console.error("Error fetching fav lists:", err);
         } finally {
             setModalLoading(false);
         }
@@ -164,7 +331,7 @@ const HistoryPage: React.FC = () => {
         try {
             setModalLoading(true);
             await favoritosService.addFavorito(listId, selectedEntryForFav.place_id);
-            alert(`¡${selectedEntryForFav.name} añadido a tus favoritos! ⭐`);
+            alert(`¡${selectedEntryForFav.name} añadido a favoritos! ⭐`);
             setIsFavModalOpen(false);
         } catch (err: any) {
             alert("Error: " + err.message);
@@ -181,7 +348,6 @@ const HistoryPage: React.FC = () => {
             await favoritosService.addFavorito(newList.id, selectedEntryForFav.place_id);
             alert(`¡Lista "${newListName}" creada y ${selectedEntryForFav.name} añadido! ⭐`);
             setIsFavModalOpen(false);
-            setIsCreatingList(false);
             setNewListName('Mis Favoritos');
         } catch (err: any) {
             alert("Error: " + err.message);
@@ -190,517 +356,367 @@ const HistoryPage: React.FC = () => {
         }
     };
 
-    let content;
-    if (loading) {
-        content = (
-            <div style={{ textAlign: 'center', padding: '3rem' }}>
-                <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: '30px', height: '30px', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }}></div>
-                <p>Cargando tu historial...</p>
-            </div>
-        );
-    } else if (error) {
-        content = (
-            <div className="message error" style={{ margin: '1rem 0' }}>
-                {error}
-                <button 
-                  onClick={() => globalThis.location.reload()} 
-                  style={{ marginLeft: '1rem', background: 'none', border: '1px solid currentColor', color: 'inherit', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Reintentar
-                </button>
-            </div>
-        );
-    } else if (historyEntries.length === 0) {
-        content = (
+    const handleRechoose = async (entry: HistoryEntry) => {
+        try {
+            await historialService.addToHistorial(entry.place_id);
+            alert(`¡Has vuelto a elegir ${entry.name}! 🍽️`);
+            navigate('/home');
+        } catch (err: any) {
+            alert("Error: " + err.message);
+        }
+    };
+
+    const handleDeleteFromHistory = async (entry: HistoryEntry) => {
+        if (!globalThis.confirm(`¿Eliminar ${entry.name} de tu historial?`)) return;
+        try {
+            await historialService.deleteFromHistorial(entry.id);
+            setHistoryEntries(prev => prev.filter(item => item.id !== entry.id));
+            if (selectedEntryForDetail?.id === entry.id) setSearchParams({});
+        } catch (err: any) {
+            alert("Error al eliminar: " + err.message);
+        }
+    };
+
+    // ── Pre-existing Modals Helper Components ─────────────────────────────────
+    const renderRatingModal = () => {
+        if (!isRatingModalOpen || !selectedEntryForRating) return null;
+        const isEdit = ratedPlaceIds.has(selectedEntryForRating.place_id);
+
+        return (
             <div style={{
-                textAlign: 'center',
-                padding: '3rem 1rem',
-                color: 'var(--muted)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '1rem'
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '1rem', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.4)',
+                animation: 'fadeIn 0.2s ease'
             }}>
-                <span style={{ fontSize: '3rem' }}>🍽️</span>
-                <p style={{ fontSize: '1rem', margin: 0 }}>
-                    No tienes restaurantes en tu historial todavía.
-                </p>
-                <p style={{ fontSize: '0.85rem', margin: 0 }}>
-                    ¡Empieza buscando recomendaciones!
-                </p>
+                <div style={{
+                    background: 'var(--surface)', maxWidth: '400px', width: '100%',
+                    borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+                    border: '1px solid var(--border)', overflow: 'hidden', animation: 'scaleUp 0.2s ease'
+                }}>
+                    <div style={{ padding: '2rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
+                        <button
+                            onClick={() => setIsRatingModalOpen(false)}
+                            style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div style={{
+                            width: 56, height: 56, borderRadius: 16,
+                            background: 'linear-gradient(135deg, #b07d3a, #cf9d56)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 1.25rem', boxShadow: '0 8px 16px rgba(176,125,58,0.2)'
+                        }}>
+                            <MessageSquare size={24} color="white" />
+                        </div>
+
+                        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>
+                            {isEdit ? 'Editar reseña' : 'Valorar restaurante'}
+                        </h3>
+                        <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', color: 'var(--muted)' }}>
+                            {selectedEntryForRating.name}
+                        </p>
+                    </div>
+
+                    <div style={{ padding: '0 1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {['calidad', 'precio', 'higiene', 'trato'].map((aspect) => (
+                            <div key={aspect} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', textTransform: 'capitalize' }}>{aspect}</span>
+                                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <Star
+                                            key={star}
+                                            size={24}
+                                            fill={star <= (ratingVal as any)[aspect] ? "#ffb400" : "transparent"}
+                                            color={star <= (ratingVal as any)[aspect] ? "#ffb400" : "var(--muted)"}
+                                            onClick={() => setRatingVal({ ...ratingVal, [aspect]: star })}
+                                            style={{ cursor: 'pointer', opacity: star <= (ratingVal as any)[aspect] ? 1 : 0.3, transition: 'all 0.2s ease' }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+
+                        <div style={{ marginTop: '0.5rem' }}>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block', letterSpacing: '0.05em' }}>Tu opinión</label>
+                            <textarea
+                                value={ratingComment}
+                                onChange={(e) => setRatingComment(e.target.value)}
+                                placeholder="Comparte tu experiencia..."
+                                rows={3}
+                                style={{ width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text)', resize: 'none', fontFamily: 'inherit', fontSize: '0.95rem' }}
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleRatingSubmit}
+                            disabled={modalLoading || Object.values(ratingVal).includes(0)}
+                            className="btn-primary"
+                            style={{ marginTop: '0.5rem', width: '100%', padding: '1rem', opacity: Object.values(ratingVal).includes(0) ? 0.5 : 1 }}
+                        >
+                            {modalLoading ? 'Guardando...' : 'Guardar valoración'}
+                        </button>
+                    </div>
+                </div>
             </div>
         );
-    } else {
-        content = (
-            <div style={{ marginTop: '1rem', width: '100%', animation: 'fadeSlideIn 0.5s ease', paddingBottom: '3rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.8rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Tus restaurantes</h2>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{historyEntries.length} en total</span>
-                </div>
+    };
 
+    const renderFavModal = () => {
+        if (!isFavModalOpen || !selectedEntryForFav) return null;
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '1rem', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.4)',
+                animation: 'fadeIn 0.2s ease'
+            }}>
                 <div style={{
-                    display: 'flex', flexDirection: 'column', gap: '1px',
-                    background: 'var(--border)', borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden', border: '1px solid var(--border)'
+                    background: 'var(--surface)', maxWidth: '400px', width: '100%',
+                    borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+                    border: '1px solid var(--border)', overflow: 'hidden', animation: 'scaleUp 0.2s ease'
                 }}>
-                    {historyEntries.map((entry) => (
-                        <div key={entry.id} className="restaurant-card-container" style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-                            <div
-                                className="restaurant-card"
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id);
-                                    }
-                                }}
-                                onClick={() => setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)}
-                                style={{
-                                    display: 'flex', alignItems: 'center',
-                                    padding: '1.5rem', background: 'transparent',
-                                    gap: '1.5rem', transition: 'all 0.2s ease', cursor: 'pointer',
-                                    position: 'relative'
-                                }}
-                            >
-                                {!ratedPlaceIds.has(entry.place_id) && (
-                                    <div 
-                                        title="¡Falta por reseñar!"
-                                        style={{
-                                            position: 'absolute', top: '12px', right: '12px',
-                                            background: '#ff5252', color: 'white',
-                                            borderRadius: '50%', width: '30px', height: '30px',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            fontSize: '18px', fontWeight: 'bold', boxShadow: '0 3px 8px rgba(0,0,0,0.3)',
-                                            cursor: 'help', zIndex: 10
-                                        }}
-                                    >
-                                        !
-                                    </div>
-                                )}
-                                <div style={{
-                                    width: '80px', height: '80px', borderRadius: '12px',
-                                    overflow: 'hidden', background: 'var(--surface2)',
-                                    flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}>
-                                    {entry.main_photo ? (
-                                        <img src={entry.main_photo} alt={entry.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <span style={{ fontSize: '2rem' }}>🍴</span>
-                                    )}
-                                </div>
+                    <div style={{ padding: '2rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
+                        <button
+                            onClick={() => setIsFavModalOpen(false)}
+                            style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}
+                        >
+                            <X size={20} />
+                        </button>
 
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)' }}>{entry.name}</div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                        {Array.from({ length: 5 }).map((_, i) => (
-                                            <span key={`star-${entry.id}-${i}`} style={{
-                                                color: i < Math.floor(entry.rating || 0) ? '#ffb400' : 'var(--muted)',
-                                                fontSize: '0.9rem',
-                                                opacity: i < Math.floor(entry.rating || 0) ? 1 : 0.3
-                                            }}>
-                                                ★
-                                            </span>
-                                        ))}
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--muted)', marginLeft: '0.4rem' }}>
-                                            {entry.rating} ({entry.user_ratings_total})
-                                        </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--accent2)', fontWeight: 500 }}>
-                                        {entry.types && entry.types.length > 0
-                                            ? entry.types[0].replaceAll('_', ' ').replaceAll(/\b\w/g, (l: string) => l.toUpperCase())
-                                            : 'Restaurante'}
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{entry.address}</div>
-                                    {entry.visited_at && (
-                                        <div style={{ fontSize: '0.72rem', color: 'var(--muted)', fontStyle: 'italic' }}>
-                                            Visitado el {new Date(entry.visited_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                        </div>
-                                    )}
-                                </div>
-                                <div style={{
-                                    color: 'var(--muted)', fontSize: '1.2rem', opacity: 0.5,
-                                    transform: expandedEntryId === entry.id ? 'rotate(90deg)' : 'none',
-                                    transition: 'transform 0.3s ease'
-                                }}>›</div>
-                            </div>
-
-                            {expandedEntryId === entry.id && (
-                                <div style={{
-                                    padding: '1.5rem',
-                                    animation: 'fadeSlideIn 0.3s ease',
-                                    background: 'rgba(var(--accent-rgb), 0.03)',
-                                    borderTop: '1px solid var(--border)',
-                                    display: 'flex', flexDirection: 'column', gap: '1.5rem'
-                                }}>
-                                    {entry.summary && (
-                                        <div style={{
-                                            fontSize: '0.95rem', color: 'var(--text)',
-                                            lineHeight: '1.6', padding: '1rem',
-                                            borderLeft: '3px solid var(--accent)',
-                                            background: 'var(--surface2)',
-                                            borderRadius: '0 var(--radius-sm) var(--radius-sm) 0'
-                                        }}>
-                                            <span style={{ fontSize: '1.2rem', marginRight: '0.5rem', verticalAlign: 'middle' }}>💬</span>
-                                            {entry.summary}
-                                        </div>
-                                    )}
-
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                        gap: '1.5rem', marginBottom: '1rem'
-                                    }}>
-                                        {entry.opening_hours && entry.opening_hours.length > 0 && (
-                                            <div style={{
-                                                background: 'var(--surface2)', padding: '1rem',
-                                                borderRadius: 'var(--radius-md)', border: '1px solid var(--border)'
-                                            }}>
-                                                <div style={{ fontWeight: 700, marginBottom: '0.8rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                                                    🕒 Horario de apertura
-                                                </div>
-                                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                                    {entry.opening_hours.slice(0, 7).map((day: string, idx: number) => {
-                                                        const parts = day.split(': ');
-                                                        const dayName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase() : '';
-                                                        const hoursRaw = parts[1] || '';
-                                                        const shifts = hoursRaw.split(', ');
-                                                        return (
-                                                            <li key={`${entry.id}-day-${idx}`} style={{
-                                                                fontSize: '0.8rem', opacity: 0.8, padding: '0.4rem 0',
-                                                                borderBottom: idx < entry.opening_hours!.length - 1 ? '1px solid var(--border)' : 'none',
-                                                                display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'
-                                                            }}>
-                                                                <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{dayName} :</span>
-                                                                <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                    {shifts.map((s, sIdx) => (
-                                                                        <span key={`${entry.id}-day-${idx}-shift-${sIdx}`}>{s}</span>
-                                                                    ))}
-                                                                </div>
-                                                            </li>
-                                                        );
-                                                    })}
-                                                </ul>
-                                            </div>
-                                        )}
-
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                            <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.9rem' }}>📍 Enlaces de interés</div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                                {entry.google_maps_uri && (
-                                                    <a href={entry.google_maps_uri} target="_blank" rel="noopener noreferrer"
-                                                        className="btn-secondary"
-                                                        style={{
-                                                            fontSize: '0.85rem', display: 'flex', alignItems: 'center',
-                                                            gap: '0.6rem', padding: '0.6rem 0.8rem',
-                                                            background: 'var(--surface2)', color: 'var(--accent)',
-                                                            border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                                                            textDecoration: 'none', transition: 'all 0.2s ease'
-                                                        }}>
-                                                        <span>🗺️</span> Google Maps
-                                                    </a>
-                                                )}
-                                                {entry.website_uri && (
-                                                    <a href={entry.website_uri} target="_blank" rel="noopener noreferrer"
-                                                        className="btn-secondary"
-                                                        style={{
-                                                            fontSize: '0.85rem', display: 'flex', alignItems: 'center',
-                                                            gap: '0.6rem', padding: '0.6rem 0.8rem',
-                                                            background: 'var(--surface2)', color: 'var(--accent)',
-                                                            border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                                                            textDecoration: 'none', transition: 'all 0.2s ease'
-                                                        }}>
-                                                        <span>🌐</span> Sitio Web
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
-                                        <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                try {
-                                                    await historialService.addToHistorial(entry.place_id);
-                                                    alert(`¡Has vuelto a elegir ${entry.name}!\n\n¡Que disfrutes repitiendo una deliciosa comida! 🍽️`);
-                                                    navigate('/home');
-                                                } catch (err: any) {
-                                                    console.error("Error saving to history:", err);
-                                                    alert("Error al guardar en el historial: " + err.message);
-                                                }
-                                            }}
-                                            className="btn-primary"
-                                            style={{
-                                                width: '100%',
-                                                padding: '1rem',
-                                                boxShadow: '0 4px 12px rgba(var(--accent-rgb), 0.3)',
-                                                fontWeight: 700,
-                                                letterSpacing: '1px',
-                                                textTransform: 'uppercase'
-                                            }}
-                                        >
-                                            VOLVER A SELECCIONAR
-                                        </button>
-                                        <div style={{ display: 'flex', gap: '1rem' }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleAddToFavoritesClick(entry);
-                                                }}
-                                                className="btn-secondary"
-                                                style={{
-                                                    flex: 1,
-                                                    padding: '0.8rem',
-                                                    borderRadius: 'var(--radius-sm)'
-                                                }}
-                                            >
-                                                ⭐ Añadir a favoritos
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRateClick(entry);
-                                                }}
-                                                className="btn-secondary"
-                                                style={{
-                                                    flex: 1,
-                                                    padding: '0.8rem',
-                                                    borderRadius: 'var(--radius-sm)'
-                                                }}
-                                            >
-                                                {ratedPlaceIds.has(entry.place_id) ? '✏️ Cambiar reseña' : '📝 Valorar restaurante'}
-                                            </button>
-                                        </div>
-                                        <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (!globalThis.confirm(`¿Estás seguro de que quieres eliminar ${entry.name} de tu historial?`)) return;
-                                                try {
-                                                    await historialService.deleteFromHistorial(entry.id);
-                                                    setHistoryEntries(prev => prev.filter(item => item.id !== entry.id));
-                                                } catch (err: any) {
-                                                    console.error("Error deleting from history:", err);
-                                                    alert("Error al eliminar del historial: " + err.message);
-                                                }
-                                            }}
-                                            className="btn-secondary"
-                                            style={{
-                                                width: '100%',
-                                                padding: '0.8rem',
-                                                background: 'rgba(255, 59, 48, 0.1)',
-                                                color: '#ff3b30',
-                                                border: '1px solid rgba(255, 59, 48, 0.3)',
-                                                borderRadius: 'var(--radius-sm)',
-                                                fontWeight: 600
-                                            }}
-                                        >
-                                            🗑️ Eliminar del historial
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                        <div style={{
+                            width: 56, height: 56, borderRadius: 16,
+                            background: 'linear-gradient(135deg, #f05b8e, #d43d5c)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 1.25rem', boxShadow: '0 8px 16px rgba(240,91,142,0.2)'
+                        }}>
+                            <Heart size={24} color="white" fill="white" />
                         </div>
-                    ))}
+
+                        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Añadir a favoritos</h3>
+                        <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', color: 'var(--muted)' }}>Selecciona una lista</p>
+                    </div>
+
+                    <div style={{ padding: '0 1.5rem 2rem' }}>
+                        {isCreatingList ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.2s ease' }}>
+                                <div style={{ background: 'var(--surface-2)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>Nombre de la nueva lista</label>
+                                    <input
+                                        type="text"
+                                        autoFocus
+                                        value={newListName}
+                                        onChange={(e) => setNewListName(e.target.value)}
+                                        placeholder="Ej: Mis favoritos, Para cenar..."
+                                        style={{ width: '100%', background: 'none', border: 'none', color: 'var(--text)', fontSize: '1rem', fontWeight: 600, padding: 0, outline: 'none' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                    <button onClick={() => setIsCreatingList(false)} className="btn-detail-outline" style={{ flex: 1 }}>Atrás</button>
+                                    <button onClick={handleCreateAndAddToList} className="btn-primary" style={{ flex: 2 }}>Crear y añadir</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                {favLists.map(list => (
+                                    <button
+                                        key={list.id}
+                                        onClick={() => confirmAddToFavorite(list.id)}
+                                        className="restaurant-compact-card"
+                                        style={{ width: '100%', padding: '0.75rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+                                    >
+                                        <div style={{
+                                            width: 36, height: 36, borderRadius: 8,
+                                            background: getIconColor(list.icono),
+                                            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                        }}>
+                                            {renderIconComponent(list.icono, 18)}
+                                        </div>
+                                        <div style={{ flex: 1, textAlign: 'left', fontWeight: 600, fontSize: '0.95rem' }}>{list.nombre}</div>
+                                        <ChevronRight size={16} style={{ opacity: 0.3 }} />
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setIsCreatingList(true)}
+                                    className="btn-detail-outline"
+                                    style={{ width: '100%', borderStyle: 'dashed', color: 'var(--accent-light)', marginTop: '0.4rem' }}
+                                >
+                                    <Plus size={16} /> Crear nueva lista
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
+            </div>
+        );
+    };
+
+    // ── Conditional Render (Detail View) ──────────────────────────────────────
+    if (selectedEntryForDetail) {
+        const visitDate = new Date(selectedEntryForDetail.visited_at || '');
+        const visitStr = `Visitado el ${visitDate.getDate()} de ${visitDate.toLocaleDateString('es-ES', { month: 'long' })} de ${visitDate.getFullYear()}`;
+        const isRated = ratedPlaceIds.has(selectedEntryForDetail.place_id);
+
+        return (
+            <div className="page-screen">
+                <RestaurantDetailView
+                    restaurant={selectedEntryForDetail}
+                    subtitle={visitStr}
+                    backText="Historial"
+                    onBack={() => navigate(-1)}
+                    actions={
+                        <div className="detail-actions-column">
+                            <button className="btn-detail-main" onClick={() => handleRechoose(selectedEntryForDetail)}>
+                                <UtensilsCrossed size={18} /> Volver a seleccionar
+                            </button>
+                            <div className="btn-detail-secondary-row">
+                                <button className="btn-detail-outline" onClick={() => handleAddToFavoritesClick(selectedEntryForDetail)}>
+                                    <Heart size={16} /> Añadir a favoritos
+                                </button>
+                                <button className="btn-detail-outline" onClick={() => handleRateClick(selectedEntryForDetail)}>
+                                    <MessageSquare size={16} /> {isRated ? 'Editar reseña' : 'Escribir reseña'}
+                                </button>
+                            </div>
+                            <button className="btn-detail-outline danger" onClick={() => handleDeleteFromHistory(selectedEntryForDetail)}>
+                                <Trash2 size={16} /> Eliminar del historial
+                            </button>
+                        </div>
+                    }
+                />
+                {renderRatingModal()}
+                {renderFavModal()}
             </div>
         );
     }
 
+    // ── Main List Render ──────────────────────────────────────────────────────
     return (
-        <div className="app-container" style={{ alignItems: 'flex-start', paddingTop: '4rem' }}>
-            <div className="auth-card" style={{ maxWidth: '600px', width: '100%' }}>
-                <div className="auth-header">
-                    <div className="auth-logo">🕓</div>
-                    <h1>Mi Historial</h1>
-                    <p>Restaurantes que has visitado o seleccionado</p>
-                </div>
+        <div className="page-screen">
+            <TopBar showMenu={true} />
 
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/home')}
-                        className="btn-primary"
-                        style={{ flex: 1, background: 'var(--surface2)', color: 'var(--text)', boxShadow: 'none' }}
-                    >
-                        Volver
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/recommend-restaurants')}
-                        className="btn-primary"
-                        style={{ flex: 1, background: 'var(--accent)', color: 'white' }}
-                    >
-                        Buscar más
-                    </button>
-                </div>
-
-                {content}
-
-                <style>{`
-                    .restaurant-card:hover { background: rgba(0,0,0,0.03) !important; }
-                    [data-theme='dark'] .restaurant-card:hover { background: rgba(255,255,255,0.03) !important; }
-                `}</style>
-            </div>
-
-            {/* Modal para valorar restaurante */}
-            {isRatingModalOpen && selectedEntryForRating && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '1rem', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.4)',
-                    animation: 'fadeIn 0.2s ease'
-                }}>
+            <main className="home-body" style={{ padding: '0 var(--space-5) var(--space-8)' }}>
+                {/* Header Section */}
+                <div style={{ paddingTop: 'var(--space-6)', textAlign: 'center', marginBottom: '2rem' }}>
                     <div style={{
-                        background: 'var(--surface)', maxWidth: '400px', width: '100%',
-                        borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-                        border: '1px solid var(--border)', overflow: 'hidden', animation: 'scaleUp 0.2s ease'
+                        width: 64, height: 64, borderRadius: 18,
+                        background: 'linear-gradient(135deg, #5b6af0, #3dadd4)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 1rem', boxShadow: '0 8px 24px rgba(91,106,240,0.3)',
+                        animation: 'scaleUp 0.3s ease'
                     }}>
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Valorar {selectedEntryForRating.name}</h3>
-                            <button onClick={() => setIsRatingModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
-                        </div>
-
-                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {['calidad', 'precio', 'higiene', 'trato'].map((aspect) => (
-                                <div key={aspect} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', textTransform: 'capitalize' }}>
-                                        {aspect}
-                                    </span>
-                                    <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <span 
-                                                key={star}
-                                                role="button"
-                                                tabIndex={0}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' || e.key === ' ') {
-                                                        setRatingVal({ ...ratingVal, [aspect]: star });
-                                                    }
-                                                }}
-                                                onClick={() => setRatingVal({ ...ratingVal, [aspect]: star })}
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    fontSize: '1.5rem',
-                                                    color: star <= (ratingVal as any)[aspect] ? '#ffb400' : 'var(--muted)',
-                                                    opacity: star <= (ratingVal as any)[aspect] ? 1 : 0.3,
-                                                    transition: 'color 0.2s ease, opacity 0.2s ease'
-                                                }}
-                                            >
-                                                ★
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-
-                            <div style={{ marginTop: '0.5rem' }}>
-                                <label htmlFor="rating-comment" style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem', display: 'block' }}>Comentario (opcional)</label>
-                                <textarea
-                                    id="rating-comment"
-                                    value={ratingComment}
-                                    onChange={(e) => setRatingComment(e.target.value)}
-                                    placeholder="¿Qué te ha parecido?"
-                                    rows={3}
-                                    style={{
-                                        width: '100%', padding: '0.8rem', borderRadius: 'var(--radius-sm)',
-                                        border: '1px solid var(--border)', background: 'var(--surface2)',
-                                        color: 'var(--text)', resize: 'none', fontFamily: 'inherit'
-                                    }}
-                                />
-                            </div>
-
-                            <button
-                                onClick={handleRatingSubmit}
-                                disabled={modalLoading || Object.values(ratingVal).includes(0)}
-                                className="btn-primary"
-                                style={{
-                                    marginTop: '0.5rem', padding: '0.8rem', width: '100%',
-                                    opacity: Object.values(ratingVal).includes(0) ? 0.5 : 1
-                                }}
-                            >
-                                {modalLoading ? 'Enviando...' : 'Enviar valoración'}
-                            </button>
-                        </div>
+                        <Clock size={28} color="white" />
                     </div>
+                    <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>Mi historial</h1>
+                    <p style={{ margin: '0.4rem 0 0', fontSize: '0.95rem', color: 'var(--muted)' }}>
+                        Restaurantes que has visitado o seleccionado
+                    </p>
                 </div>
-            )}
 
-            {/* Modal para añadir a favoritos */}
-            {isFavModalOpen && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '1rem', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.4)',
-                    animation: 'fadeIn 0.2s ease'
-                }}>
-                    <div style={{
-                        background: 'var(--surface)', maxWidth: '400px', width: '100%',
-                        borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-                        border: '1px solid var(--border)', overflow: 'hidden', animation: 'scaleUp 0.2s ease'
-                    }}>
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Añadir a favoritos</h3>
-                            <button onClick={() => setIsFavModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
-                        </div>
+                {/* Search Bar */}
+                <div className="history-filter-row">
+                    <div className="internal-search-box" style={{ flex: 1, marginBottom: 0 }}>
+                        <Search className="search-icon" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Buscar en historial..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button
+                        className={`history-filter-btn ${statusFilter !== 'all' ? 'active' : ''}`}
+                        onClick={cycleFilter}
+                    >
+                        <Filter size={16} />
+                        {statusFilter === 'all' ? 'Filtrar' : statusFilter === 'rated' ? 'Reseñados' : 'Sin reseña'}
+                    </button>
+                </div>
 
-                        <div style={{ padding: '1.5rem' }}>
-                            {modalLoading ? (
-                                <div style={{ textAlign: 'center', padding: '1rem' }}>
-                                    <div className="loading-spinner" style={{ border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', width: '20px', height: '20px', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
-                                </div>
-                            ) : isCreatingList ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0 }}>Crea una nueva lista:</p>
-                                    <input 
-                                        type="text" 
-                                        value={newListName} 
-                                        onChange={(e) => setNewListName(e.target.value)}
-                                        placeholder="Nombre de la lista"
-                                        style={{ width: '100%', padding: '0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)' }}
-                                    />
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button onClick={() => setIsCreatingList(false)} className="btn-secondary" style={{ flex: 1, fontSize: '0.8rem' }}>Atrás</button>
-                                        <button onClick={handleCreateAndAddToList} className="btn-primary" style={{ flex: 2, fontSize: '0.8rem' }}>Crear y Añadir</button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>Elige una lista:</p>
-                                    {favLists.map(list => (
-                                        <button 
-                                            key={list.id} 
-                                            onClick={() => confirmAddToFavorite(list.id)}
-                                            style={{
-                                                width: '100%', padding: '1rem', textAlign: 'left',
-                                                background: 'var(--surface2)', border: '1px solid var(--border)',
-                                                borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                                                display: 'flex', alignItems: 'center', gap: '0.8rem',
-                                                transition: 'background 0.2s ease', color: 'var(--text)'
-                                            }}
-                                            onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface3)'}
-                                            onFocus={(e) => e.currentTarget.style.background = 'var(--surface3)'}
-                                            onMouseOut={(e) => e.currentTarget.style.background = 'var(--surface2)'}
-                                            onBlur={(e) => e.currentTarget.style.background = 'var(--surface2)'}
-                                        >
-                                            <span>📋</span> {list.nombre}
-                                        </button>
-                                    ))}
-                                    <button 
-                                        onClick={() => setIsCreatingList(true)}
-                                        style={{
-                                            width: '100%', padding: '1rem', marginTop: '0.5rem',
-                                            background: 'none', border: '1px dashed var(--accent)',
-                                            color: 'var(--accent)', borderRadius: 'var(--radius-sm)',
-                                            cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
-                                        }}
-                                    >+ Crear nueva lista</button>
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: '3rem' }}>
+                        <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: 30, height: 30, animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+                        <p style={{ color: 'var(--muted)' }}>Cargando historial...</p>
+                    </div>
+                ) : (
+                    <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: 'var(--font-sm)', color: 'var(--muted)', fontWeight: 600 }}>
+                                {historyEntries.length} restaurantes
+                            </span>
+                            {unratedCount > 0 && (
+                                <div style={{ background: 'rgba(176,125,58,0.1)', color: '#d4a045', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                                    {unratedCount} sin reseña
                                 </div>
                             )}
                         </div>
+
+                        {groups.map(([key, group]) => {
+                            const isOpen = expandedGroups.has(key);
+                            return (
+                                <div key={key}>
+                                    <div className="history-group-header" onClick={() => toggleGroup(key)}>
+                                        <span className="history-group-title">{group.label}</span>
+                                        <div className="history-group-meta">
+                                            <span>{group.entries.length} restaurantes</span>
+                                            {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                        </div>
+                                    </div>
+
+                                    {isOpen && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem 0 1rem' }}>
+                                            {group.entries.map((entry) => {
+                                                const isRated = ratedPlaceIds.has(entry.place_id);
+                                                const visitDate = new Date(entry.visited_at || '');
+
+                                                return (
+                                                    <div
+                                                        key={entry.id}
+                                                        className="restaurant-compact-card"
+                                                        onClick={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
+                                                    >
+                                                        <div style={{ position: 'absolute', top: '10px', right: '35px', zIndex: 10 }}>
+                                                            <div className={`status-badge ${isRated ? 'rated' : 'unrated'}`}>
+                                                                {isRated ? 'Reseñado' : 'Sin reseñar'}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="compact-img-box">
+                                                            {entry.main_photo ? <img src={entry.main_photo} alt={entry.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />}
+                                                        </div>
+
+                                                        <div className="compact-info">
+                                                            <div className="compact-name">{entry.name}</div>
+                                                            <div className="compact-meta">
+                                                                <div className="compact-rating"><Star size={12} fill="currentColor" /> {entry.rating}</div>
+                                                                <span>({entry.user_ratings_total})</span>
+                                                                <span>• {visitDate.getDate()} {visitDate.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}</span>
+                                                            </div>
+                                                            <div className="compact-address">{entry.address}</div>
+                                                        </div>
+
+                                                        <ItemMenu
+                                                            isRated={isRated}
+                                                            onRate={() => handleRateClick(entry)}
+                                                            onFavorite={() => handleAddToFavoritesClick(entry)}
+                                                            onRechoose={() => handleRechoose(entry)}
+                                                            onDelete={() => handleDeleteFromHistory(entry)}
+                                                            onDetails={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
-                </div>
-            )}
+                )}
+            </main>
+            {renderRatingModal()}
+            {renderFavModal()}
         </div>
     );
 };

@@ -63,6 +63,7 @@ async def obtener_todas_mis_valoraciones(
             "higiene": val.higiene,
             "trato": val.trato,
             "comentario": val.comentario,
+            "fecha": val.fecha,
             "restaurant": details
         })
     

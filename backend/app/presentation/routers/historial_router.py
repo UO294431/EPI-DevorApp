@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.infrastructure.database import get_db
-from app.models.dtos.historial_dto import HistorialEntryCreate, HistorialEntryResponse
+from app.models.dtos.historial_dto import HistorialEntryCreate, HistorialEntryResponse, PopularPlacesRequest
 from app.models.entities.usuarios import Usuario
 from app.services import historial_service
 
@@ -61,10 +61,9 @@ async def get_historial(
     return results
 
 
-@router.get("/populares")
+@router.post("/populares")
 async def get_popular_historial(
-    limit: int = 5,
-    location: str | None = None,
+    data: PopularPlacesRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -77,7 +76,7 @@ async def get_popular_historial(
     import math
 
     # Para tener mejor muestra para el filtro geográfico, cogemos un top 20
-    top_places = historial_service.get_popular_places(db, limit=20)
+    top_places = historial_service.get_popular_places(db, limit=max(20, data.limit * 2))
     
     tasks = [recommendation_service.get_place_details(place_id) for place_id, _ in top_places]
     details_list = await asyncio.gather(*tasks)
@@ -88,8 +87,8 @@ async def get_popular_historial(
         details['visit_count'] = visit_count
         results.append(details)
         
-    if location:
-        lat, lng = await recommendation_service._geocode_location(location)
+    if data.location:
+        lat, lng = await recommendation_service._geocode_location(data.location)
         if lat is not None and lng is not None:
             def haversine(lat1, lon1, lat2, lon2):
                 R = 6371.0
@@ -109,9 +108,7 @@ async def get_popular_historial(
                         filtered_results.append(r)
             results = filtered_results
             
-    return results[:limit]
-
-
+    return results[:data.limit]
 
 @router.post("", status_code=201)
 async def add_to_historial(

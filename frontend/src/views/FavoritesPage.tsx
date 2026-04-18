@@ -1,21 +1,353 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+    Heart, Clock, Star, Bookmark, Coffee, Pizza, UtensilsCrossed, Wine,
+    Sandwich, Flame, MapPin, Trophy, Smile, ThumbsUp, Gift, Cake,
+    ShoppingBag, Moon, Sun, Zap, Plus, MoreVertical, X, Map, Globe,
+    ChevronRight, ChevronLeft, Search
+} from 'lucide-react';
 import { favoritosService } from '../models/api/favoritosService';
 import type { FavoritosList, FavoritoItem } from '../models/api/favoritosService';
 import { historialService } from '../models/api/historialService';
+import TopBar from '../components/TopBar';
+import RestaurantDetailView from '../components/RestaurantDetailView';
 
-// --------------- Página ---------------
+// ── Icon catalogue ────────────────────────────────────────────────────────────
+const ICONS: { name: string; component: React.FC<any> }[] = [
+    { name: 'Heart', component: Heart },
+    { name: 'Star', component: Star },
+    { name: 'Bookmark', component: Bookmark },
+    { name: 'Clock', component: Clock },
+    { name: 'Coffee', component: Coffee },
+    { name: 'Pizza', component: Pizza },
+    { name: 'UtensilsCrossed', component: UtensilsCrossed },
+    { name: 'Wine', component: Wine },
+    { name: 'Sandwich', component: Sandwich },
+    { name: 'Flame', component: Flame },
+    { name: 'MapPin', component: MapPin },
+    { name: 'Trophy', component: Trophy },
+    { name: 'Smile', component: Smile },
+    { name: 'ThumbsUp', component: ThumbsUp },
+    { name: 'Gift', component: Gift },
+    { name: 'Cake', component: Cake },
+    { name: 'ShoppingBag', component: ShoppingBag },
+    { name: 'Moon', component: Moon },
+    { name: 'Sun', component: Sun },
+    { name: 'Zap', component: Zap },
+];
+
+// Color palette per icon slot (cycles through 8 colours)
+const ICON_COLORS = [
+    '#b07d3a', '#5b6af0', '#2ebd7e', '#e05252',
+    '#a259e6', '#e0823d', '#3dadd4', '#c4b347',
+];
+
+function getIconColor(iconName: string): string {
+    const idx = ICONS.findIndex(i => i.name === iconName);
+    return ICON_COLORS[idx % ICON_COLORS.length] ?? '#b07d3a';
+}
+
+function renderIcon(name: string, size = 22, color = 'white') {
+    const found = ICONS.find(i => i.name === name);
+    if (!found) return <Heart size={size} color={color} />;
+    const IconComp = found.component;
+    return <IconComp size={size} color={color} />;
+}
+
+// ── New‑list modal ────────────────────────────────────────────────────────────
+interface NewListModalProps {
+    onClose: () => void;
+    onCreate: (nombre: string, icono: string) => Promise<void>;
+}
+
+const NewListModal: React.FC<NewListModalProps> = ({ onClose, onCreate }) => {
+    const [nombre, setNombre] = useState('');
+    const [selectedIcon, setSelectedIcon] = useState('Heart');
+    const [saving, setSaving] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => { inputRef.current?.focus(); }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!nombre.trim()) return;
+        setSaving(true);
+        try {
+            await onCreate(nombre.trim(), selectedIcon);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div style={{
+            position: 'fixed', inset: 0, zIndex: 500,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease',
+        }} onClick={onClose}>
+            <div onClick={e => e.stopPropagation()} style={{
+                background: 'var(--surface-2)',
+                borderRadius: '24px 24px 0 0',
+                width: '100%', maxWidth: '600px',
+                padding: '1.5rem',
+                border: '1px solid var(--border)',
+                animation: 'slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+            }}>
+                {/* Handle */}
+                <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 1.5rem' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>Nueva lista</h2>
+                    <button onClick={onClose} style={{ background: 'var(--surface-3)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text)' }}>
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    {/* Preview */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                        <div style={{
+                            width: 72, height: 72, borderRadius: 18,
+                            background: getIconColor(selectedIcon),
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: `0 8px 24px ${getIconColor(selectedIcon)}55`,
+                            transition: 'all 0.3s ease',
+                        }}>
+                            {renderIcon(selectedIcon, 32)}
+                        </div>
+                    </div>
+
+                    {/* Name input */}
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        placeholder="Nombre de la lista..."
+                        value={nombre}
+                        onChange={e => setNombre(e.target.value)}
+                        maxLength={40}
+                        style={{
+                            width: '100%', padding: '14px 16px',
+                            background: 'var(--surface-3)', border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)', color: 'var(--text)',
+                            fontSize: '1rem', marginBottom: '1.5rem',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+
+                    {/* Icon picker */}
+                    <p style={{ fontSize: 'var(--font-xs)', color: 'var(--muted)', marginBottom: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Elige un icono
+                    </p>
+                    <div style={{
+                        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+                        gap: '0.6rem', marginBottom: '1.5rem',
+                    }}>
+                        {ICONS.map(({ name }) => (
+                            <button
+                                key={name}
+                                type="button"
+                                onClick={() => setSelectedIcon(name)}
+                                style={{
+                                    aspectRatio: '1', borderRadius: 14,
+                                    background: selectedIcon === name ? getIconColor(name) : 'var(--surface-3)',
+                                    border: selectedIcon === name ? 'none' : '1px solid var(--border)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    transform: selectedIcon === name ? 'scale(1.1)' : 'scale(1)',
+                                    transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+                                    boxShadow: selectedIcon === name ? `0 4px 12px ${getIconColor(name)}55` : 'none',
+                                }}
+                            >
+                                {renderIcon(name, 20, selectedIcon === name ? 'white' : 'var(--muted)')}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={!nombre.trim() || saving}
+                        style={{
+                            width: '100%', padding: '14px',
+                            background: nombre.trim() ? 'var(--accent)' : 'var(--surface-3)',
+                            color: nombre.trim() ? 'white' : 'var(--muted)',
+                            border: 'none', borderRadius: 'var(--radius-sm)',
+                            fontWeight: 700, fontSize: '1rem', cursor: nombre.trim() ? 'pointer' : 'default',
+                            transition: 'all 0.2s ease',
+                        }}
+                    >
+                        {saving ? 'Creando...' : 'Crear lista'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// ── 3-dot menu ────────────────────────────────────────────────────────────────
+interface ListMenuProps {
+    onRename: () => void;
+    onDelete: () => void;
+}
+
+const ListMenu: React.FC<ListMenuProps> = ({ onRename, onDelete }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <button
+                onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+                style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--muted)', padding: '8px', borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-3)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+            >
+                <MoreVertical size={18} />
+            </button>
+            {open && (
+                <div style={{
+                    position: 'absolute', right: 0, top: '110%',
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)', minWidth: 140, zIndex: 100,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    animation: 'fadeSlideIn 0.15s ease',
+                    overflow: 'hidden',
+                }}>
+                    <button onClick={() => { setOpen(false); onRename(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--font-sm)' }}>
+                        <Clock size={14} /> Cambiar nombre
+                    </button>
+                    <button onClick={() => { setOpen(false); onDelete(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: 'var(--font-sm)' }}>
+                        <X size={14} /> Eliminar lista
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ── Item Menu (for restaurants) ──────────────────────────────────────────────
+interface ItemMenuProps {
+    onDelete: () => void;
+    onHistory: () => void;
+    onDetails: () => void;
+}
+
+const ItemMenu: React.FC<ItemMenuProps> = ({ onDelete, onHistory, onDetails }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <button
+                onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '6px' }}
+            >
+                <MoreVertical size={18} />
+            </button>
+            {open && (
+                <div style={{
+                    position: 'absolute', right: 0, top: '100%',
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    borderRadius: 8, minWidth: 160, zIndex: 100,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    overflow: 'hidden',
+                }}>
+                    <button onClick={() => { setOpen(false); onDetails(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: '0.85rem' }}>
+                        <Map size={14} /> Ver detalles
+                    </button>
+                    <button onClick={() => { setOpen(false); onHistory(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-light)', fontSize: '0.85rem' }}>
+                        <Clock size={14} /> Mover a historial
+                    </button>
+                    <button onClick={() => { setOpen(false); onDelete(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.85rem' }}>
+                        <X size={14} /> Quitar de favoritos
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 const FavoritesPage: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [lists, setLists] = useState<FavoritosList[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showNewModal, setShowNewModal] = useState(false);
 
-    // Estado para el Modal
+    // Detail View State
     const [selectedList, setSelectedList] = useState<FavoritosList | null>(null);
     const [favoritos, setFavoritos] = useState<FavoritoItem[]>([]);
     const [modalLoading, setModalLoading] = useState(false);
-    const [expandedFavoriteId, setExpandedFavoriteId] = useState<number | null>(null);
+    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<FavoritoItem | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Sync state with URL parameters
+    useEffect(() => {
+        const listIdStr = searchParams.get('list');
+        const detailId = searchParams.get('detail');
+        const listId = listIdStr ? parseInt(listIdStr, 10) : null;
+
+        if (listId !== null) {
+            const listObj = lists.find(l => l.id === listId);
+            if (listObj) {
+                if (selectedList?.id !== listId) {
+                    // Update the simple state for the overview
+                    setSelectedList(listObj);
+                    // Fetch if not already loading/loaded
+                    if (!modalLoading) {
+                        (async () => {
+                            setModalLoading(true);
+                            try {
+                                const data = await favoritosService.getListaDetalle(listId);
+                                setFavoritos(data.restaurantes);
+                            } catch (err) {
+                                alert('Error al cargar la lista');
+                                setSearchParams({});
+                            } finally {
+                                setModalLoading(false);
+                            }
+                        })();
+                    }
+                }
+
+                if (detailId) {
+                    const entry = favoritos.find(f => f.restaurant.id.toString() === detailId);
+                    if (entry) {
+                        setSelectedEntryForDetail(entry);
+                    }
+                } else {
+                    setSelectedEntryForDetail(null);
+                }
+            }
+        } else {
+            setSelectedList(null);
+            setFavoritos([]);
+            setSelectedEntryForDetail(null);
+        }
+    }, [searchParams, lists, favoritos.length]);
 
     useEffect(() => {
         const fetchLists = async () => {
@@ -24,7 +356,7 @@ const FavoritesPage: React.FC = () => {
                 const data = await favoritosService.getListas();
                 setLists(data);
             } catch (err: any) {
-                setError(err.message || 'No se pudieron cargar tus listas de favoritos.');
+                setError(err.message || 'No se pudieron cargar tus listas.');
             } finally {
                 setLoading(false);
             }
@@ -32,403 +364,297 @@ const FavoritesPage: React.FC = () => {
         fetchLists();
     }, []);
 
-    const handleListClick = async (list: FavoritosList) => {
-        setSelectedList(list);
-        setModalLoading(true);
-        try {
-            const data = await favoritosService.getListaDetalle(list.id);
-            setFavoritos(data.restaurantes);
-        } catch (err: any) {
-            console.error("Error fetching list details:", err);
-            alert("No se pudieron cargar los restaurantes de esta lista.");
-            setSelectedList(null);
-        } finally {
-            setModalLoading(false);
+    const handleListClick = (list: FavoritosList) => {
+        setSearchParams({ list: list.id.toString() });
+        setSearchTerm('');
+    };
+
+    const goBack = () => {
+        if (searchParams.get('detail')) {
+            navigate(-1);
+        } else if (searchParams.get('list')) {
+            navigate(-1);
         }
     };
 
-    const closeModal = () => {
-        setSelectedList(null);
-        setFavoritos([]);
-        setExpandedFavoriteId(null);
+    const handleCreate = async (nombre: string, icono: string) => {
+        const nueva = await favoritosService.crearLista(nombre, icono);
+        setLists(prev => [...prev, nueva]);
+        setShowNewModal(false);
     };
 
-    let content;
-    if (loading) {
-        content = (
-            <div style={{ textAlign: 'center', padding: '3rem' }}>
-                <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: '30px', height: '30px', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }}></div>
-                <p>Cargando tus listas de favoritos...</p>
-            </div>
-        );
-    } else if (error) {
-        content = (
-            <div className="message error" style={{ margin: '1rem 0' }}>
-                {error}
-                <button
-                    onClick={() => globalThis.location.reload()}
-                    style={{ marginLeft: '1rem', background: 'none', border: '1px solid currentColor', color: 'inherit', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                    Reintentar
-                </button>
-            </div>
-        );
-    } else if (lists.length === 0) {
-        content = (
-            <div style={{
-                textAlign: 'center',
-                padding: '3rem 1rem',
-                color: 'var(--muted)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '1rem'
-            }}>
-                <span style={{ fontSize: '3rem' }}>⭐</span>
-                <p style={{ fontSize: '1rem', margin: 0 }}>
-                    Todavía no tienes ninguna lista de favoritos.
-                </p>
-                <p style={{ fontSize: '0.85rem', margin: 0 }}>
-                    ¡Añade un restaurante a favoritos para empezar!
-                </p>
-            </div>
-        );
-    } else {
-        content = (
-            <div style={{ marginTop: '1rem', width: '100%', animation: 'fadeSlideIn 0.5s ease' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.8rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Mis listas</h2>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{lists.length} en total</span>
-                </div>
+    const handleDelete = async (list: FavoritosList) => {
+        if (!globalThis.confirm(`¿Eliminar la lista "${list.nombre}" y todos sus restaurantes?`)) return;
+        try {
+            await favoritosService.deleteLista(list.id);
+            setLists(prev => prev.filter(l => l.id !== list.id));
+            if (selectedList?.id === list.id) setSearchParams({});
+        } catch (err: any) {
+            alert('Error al eliminar: ' + err.message);
+        }
+    };
 
-                <div style={{
-                    display: 'flex', flexDirection: 'column', gap: '1px',
-                    background: 'var(--border)', borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden', border: '1px solid var(--border)'
-                }}>
-                    {lists.map((list) => (
-                        <button
-                            key={list.id}
-                            onClick={() => handleListClick(list)}
-                            style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                padding: '1.25rem 1.5rem', background: 'var(--surface)',
-                                border: 'none', borderBottom: '1px solid var(--border)',
-                                cursor: 'pointer', width: '100%', textAlign: 'left',
-                                color: 'var(--text)', transition: 'background 0.2s ease'
-                            }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <span style={{ fontSize: '1.5rem' }}>📋</span>
-                                <span style={{ fontWeight: 600, fontSize: '1rem' }}>{list.nombre}</span>
-                            </div>
-                            <span style={{ color: 'var(--muted)', fontSize: '1.2rem', opacity: 0.5 }}>›</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
+    const handleRename = async (list: FavoritosList) => {
+        const nuevoNombre = globalThis.prompt('Nuevo nombre para la lista:', list.nombre);
+        if (!nuevoNombre || nuevoNombre.trim() === '' || nuevoNombre === list.nombre) return;
+        try {
+            await favoritosService.updateLista(list.id, nuevoNombre.trim());
+            setLists(prev => prev.map(l => l.id === list.id ? { ...l, nombre: nuevoNombre.trim() } : l));
+            if (selectedList?.id === list.id) {
+                setSelectedList(prev => prev ? { ...prev, nombre: nuevoNombre.trim() } : null);
+            }
+        } catch (err: any) {
+            alert('Error al renombrar: ' + err.message);
+        }
+    };
+
+    const filteredFavoritos = useMemo(() => {
+        if (!searchTerm.trim()) return favoritos;
+        const lowSearch = searchTerm.toLowerCase();
+        return favoritos.filter(fav => 
+            fav.restaurant.name.toLowerCase().includes(lowSearch) ||
+            fav.restaurant.address.toLowerCase().includes(lowSearch)
         );
-    }
+    }, [favoritos, searchTerm]);
 
     return (
-        <div className="app-container" style={{ alignItems: 'flex-start', paddingTop: '4rem' }}>
-            <div className="auth-card" style={{ maxWidth: '600px', width: '100%' }}>
-                <div className="auth-header">
-                    <div className="auth-logo">⭐</div>
-                    <h1>Mis Favoritos</h1>
-                    <p>Tus listas de restaurantes favoritos</p>
-                </div>
+        <div className="page-screen">
+            {!selectedEntryForDetail && <TopBar showMenu={true} />}
 
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/home')}
-                        className="btn-primary"
-                        style={{ flex: 1, background: 'var(--surface2)', color: 'var(--text)', boxShadow: 'none' }}
-                    >
-                        Volver
-                    </button>
-                </div>
-
-                {content}
-            </div>
-
-            {/* Modal de Detalle de Lista */}
-            {selectedList && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '1rem', backdropFilter: 'blur(10px)', background: 'rgba(0,0,0,0.6)',
-                    animation: 'fadeIn 0.3s ease'
-                }}>
-                    <div style={{
-                        background: 'var(--surface)', maxWidth: '700px', width: '100%',
-                        maxHeight: '85vh', borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-                        display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-                        border: '1px solid rgba(255,255,255,0.1)', animation: 'scaleUp 0.3s ease'
-                    }}>
-                        <div style={{
-                            padding: '1.5rem 2rem', borderBottom: '1px solid var(--border)',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            background: 'var(--surface2)'
-                        }}>
-                            <div>
-                                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>{selectedList.nombre}</h2>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>
-                                    {modalLoading ? 'Cargando restaurantes...' : `${favoritos.length} restaurantes favoritos`}
-                                </p>
+            <main className="home-body" style={{ padding: '0 var(--space-5) var(--space-8)' }}>
+                {!selectedList ? (
+                    // ── OVERVIEW VIEW (GRID OF LISTS) ──
+                    <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                        {/* Header */}
+                        <div style={{ paddingTop: 'var(--space-6)', textAlign: 'center', marginBottom: '2rem' }}>
+                            <div style={{
+                                width: 64, height: 64, borderRadius: 18,
+                                background: 'linear-gradient(135deg, #b07d3a, #d4a045)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 1rem', boxShadow: '0 8px 24px rgba(176,125,58,0.35)',
+                            }}>
+                                <Heart size={28} color="white" />
                             </div>
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <button
-                                    onClick={async () => {
-                                        if (!globalThis.confirm(`¿Estás seguro de que quieres eliminar la lista "${selectedList.nombre}" y todos sus restaurantes?`)) return;
-                                        try {
-                                            await favoritosService.deleteLista(selectedList.id);
-                                            setLists((prev: FavoritosList[]) => prev.filter((l: FavoritosList) => l.id !== selectedList.id));
-                                            closeModal();
-                                        } catch (err: any) {
-                                            alert("Error al eliminar la lista: " + err.message);
-                                        }
-                                    }}
-                                    className="btn-secondary"
-                                    style={{
-                                        background: 'rgba(255, 59, 48, 0.1)', color: '#ff3b30',
-                                        border: '1px solid rgba(255, 59, 48, 0.3)', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600
-                                    }}
-                                    title="Eliminar lista"
-                                >
-                                    🗑️ Eliminar lista
-                                </button>
-                                <button
-                                    onClick={closeModal}
-                                    style={{
-                                        background: 'var(--surface3)', border: 'none', color: 'var(--text)',
-                                        width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '1.2rem', transition: 'all 0.2s ease'
-                                    }}
-                                >✕</button>
-                            </div>
+                            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>Mis favoritos</h1>
+                            <p style={{ margin: '0.4rem 0 0', fontSize: '0.95rem', color: 'var(--muted)' }}>
+                                Tus listas de restaurantes favoritos
+                            </p>
                         </div>
 
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-                            {modalLoading ? (
-                                <div style={{ textAlign: 'center', padding: '3rem' }}>
-                                    <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: '30px', height: '30px', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }}></div>
-                                    <p>Obteniendo detalles...</p>
+                        {loading ? (
+                            <div style={{ textAlign: 'center', padding: '3rem' }}>
+                                <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: 30, height: 30, animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+                                <p style={{ color: 'var(--muted)' }}>Cargando tus listas...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="message error">{error}</div>
+                        ) : (
+                            <>
+                                {/* Count + New list */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                                    <span style={{ fontSize: 'var(--font-sm)', color: 'var(--muted)', fontWeight: 500 }}>
+                                        {lists.length} {lists.length === 1 ? 'lista' : 'listas'}
+                                    </span>
+                                    <button
+                                        onClick={() => setShowNewModal(true)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            padding: '10px 18px',
+                                            background: 'var(--accent)', color: 'white',
+                                            border: 'none', borderRadius: 'var(--radius-lg)',
+                                            fontWeight: 700, fontSize: 'var(--font-sm)',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 4px 14px rgba(var(--accent-rgb), 0.4)',
+                                            transition: 'all 0.2s ease',
+                                        }}
+                                    >
+                                        <Plus size={16} /> Nueva lista
+                                    </button>
                                 </div>
-                            ) : favoritos.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted)' }}>
-                                    <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>🍽️</span>
-                                    <p>Esta lista está vacía.</p>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    {favoritos.map((fav) => {
-                                        const r = fav.restaurant;
-                                        const isExpanded = expandedFavoriteId === fav.id;
-                                        return (
-                                            <div key={fav.id} style={{
-                                                background: 'var(--surface2)', borderRadius: 'var(--radius-md)',
-                                                border: '1px solid var(--border)', overflow: 'hidden',
-                                                transition: 'all 0.3s ease', transform: isExpanded ? 'scale(1.02)' : 'none',
-                                                boxShadow: isExpanded ? '0 10px 20px rgba(0,0,0,0.2)' : 'none'
-                                            }}>
-                                                <div
-                                                    className="restaurant-card"
-                                                    onClick={() => setExpandedFavoriteId(isExpanded ? null : fav.id)}
-                                                    style={{
-                                                        display: 'flex', alignItems: 'center',
-                                                        padding: '1rem', background: 'transparent',
-                                                        gap: '1rem', cursor: 'pointer', transition: 'all 0.2s ease'
-                                                    }}
-                                                >
-                                                    <div style={{
-                                                        width: '60px', height: '60px', borderRadius: '8px',
-                                                        overflow: 'hidden', background: 'var(--surface3)',
-                                                        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                    }}>
-                                                        {r.main_photo ? (
-                                                            <img src={r.main_photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                        ) : (
-                                                            <span style={{ fontSize: '1.5rem' }}>🍴</span>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                                        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text)' }}>{r.name}</div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                                            {Array.from({ length: 5 }).map((_, i) => (
-                                                                <span key={`star-${fav.id}-${i}`} style={{
-                                                                    color: i < Math.floor(r.rating || 0) ? '#ffb400' : 'var(--muted)',
-                                                                    fontSize: '0.85rem',
-                                                                    opacity: i < Math.floor(r.rating || 0) ? 1 : 0.3
-                                                                }}>
-                                                                    ★
-                                                                </span>
-                                                            ))}
-                                                            <span style={{ fontSize: '0.75rem', color: 'var(--muted)', marginLeft: '0.3rem' }}>
-                                                                {r.rating} ({r.user_ratings_total})
-                                                            </span>
-                                                        </div>
-                                                        <div style={{ fontSize: '0.8rem', color: 'var(--accent2)', fontWeight: 500 }}>
-                                                            {r.types && r.types.length > 0
-                                                                ? r.types[0].replaceAll('_', ' ').replaceAll(/\b\w/g, (l: string) => l.toUpperCase())
-                                                                : 'Restaurante'}
-                                                        </div>
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{r.address}</div>
-                                                    </div>
-                                                    <div style={{
-                                                        color: 'var(--muted)', fontSize: '1.2rem', opacity: 0.5,
-                                                        transform: isExpanded ? 'rotate(90deg)' : 'none',
-                                                        transition: 'transform 0.3s ease'
-                                                    }}>›</div>
+
+                                {lists.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--muted)' }}>
+                                        <Heart size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                                        <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Aún no tienes listas</p>
+                                        <p style={{ fontSize: 'var(--font-sm)' }}>Crea tu primera lista para guardar restaurantes favoritos</p>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        {lists.map(list => (
+                                            <div
+                                                key={list.id}
+                                                className="fav-list-card"
+                                                onClick={() => setSearchParams({ list: list.id.toString() })}
+                                            >
+                                                {/* Icon box */}
+                                                <div className="fav-icon-box" style={{ background: getIconColor(list.icono || 'Heart') }}>
+                                                    {renderIcon(list.icono || 'Heart', 22)}
                                                 </div>
 
-                                                {isExpanded && (
-                                                    <div style={{
-                                                        padding: '1.2rem',
-                                                        animation: 'fadeSlideIn 0.3s ease',
-                                                        background: 'rgba(var(--accent-rgb), 0.03)',
-                                                        borderTop: '1px solid var(--border)',
-                                                        display: 'flex', flexDirection: 'column', gap: '1.2rem'
-                                                    }}>
-                                                        {r.summary && (
-                                                            <div style={{
-                                                                fontSize: '0.9rem', color: 'var(--text)',
-                                                                lineHeight: '1.5', padding: '0.8rem',
-                                                                borderLeft: '3px solid var(--accent)',
-                                                                background: 'var(--surface2)',
-                                                                borderRadius: '0 var(--radius-sm) var(--radius-sm) 0'
-                                                            }}>
-                                                                <span style={{ fontSize: '1.2rem', marginRight: '0.5rem', verticalAlign: 'middle' }}>💬</span>
-                                                                {r.summary}
-                                                            </div>
-                                                        )}
-
-                                                        <div style={{
-                                                            display: 'grid',
-                                                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                                            gap: '1.2rem', marginBottom: '0.5rem'
-                                                        }}>
-                                                            {r.opening_hours && r.opening_hours.length > 0 && (
-                                                                <div style={{
-                                                                    background: 'var(--surface2)', padding: '1rem',
-                                                                    borderRadius: 'var(--radius-md)', border: '1px solid var(--border)'
-                                                                }}>
-                                                                    <div style={{ fontWeight: 700, marginBottom: '0.8rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
-                                                                        🕒 Horario de apertura
-                                                                    </div>
-                                                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                                                        {r.opening_hours.slice(0, 7).map((day: string, idx: number) => {
-                                                                            const parts = day.split(': ');
-                                                                            const dayName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase() : '';
-                                                                            const hoursRaw = parts[1] || '';
-                                                                            const shifts = hoursRaw.split(', ');
-                                                                            return (
-                                                                                <li key={`${fav.id}-day-${idx}`} style={{
-                                                                                    fontSize: '0.75rem', opacity: 0.8, padding: '0.3rem 0',
-                                                                                    borderBottom: idx < r.opening_hours!.length - 1 ? '1px solid var(--border)' : 'none',
-                                                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'
-                                                                                }}>
-                                                                                    <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{dayName} :</span>
-                                                                                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                                                        {shifts.map((s: string, sIdx: number) => (
-                                                                                            <span key={`${fav.id}-day-${idx}-shift-${sIdx}`}>{s}</span>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </li>
-                                                                            );
-                                                                        })}
-                                                                    </ul>
-                                                                </div>
-                                                            )}
-
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                                                <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.85rem' }}>📍 Enlaces de interés</div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                                    {r.google_maps_uri && (
-                                                                        <a href={r.google_maps_uri} target="_blank" rel="noopener noreferrer"
-                                                                            className="btn-secondary"
-                                                                            style={{
-                                                                                fontSize: '0.8rem', display: 'flex', alignItems: 'center',
-                                                                                gap: '0.5rem', padding: '0.5rem 0.6rem',
-                                                                                background: 'var(--surface2)', color: 'var(--accent)',
-                                                                                border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                                                                                textDecoration: 'none', transition: 'all 0.2s ease'
-                                                                            }}>
-                                                                            <span>🗺️</span> Google Maps
-                                                                        </a>
-                                                                    )}
-                                                                    {r.website_uri && (
-                                                                        <a href={r.website_uri} target="_blank" rel="noopener noreferrer"
-                                                                            className="btn-secondary"
-                                                                            style={{
-                                                                                fontSize: '0.8rem', display: 'flex', alignItems: 'center',
-                                                                                gap: '0.5rem', padding: '0.5rem 0.6rem',
-                                                                                background: 'var(--surface2)', color: 'var(--accent)',
-                                                                                border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                                                                                textDecoration: 'none', transition: 'all 0.2s ease'
-                                                                            }}>
-                                                                            <span>🌐</span> Sitio Web
-                                                                        </a>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
-                                                            <button
-                                                                onClick={async (e) => {
-                                                                    e.stopPropagation();
-                                                                    try {
-                                                                        await historialService.addToHistorial(fav.place_id);
-                                                                        alert(`¡Has vuelto a elegir ${r.name}!\n\n¡Qué disfrutes repitiendo una deliciosa comida! 🍽️`);
-                                                                        navigate('/home');
-                                                                    } catch (err: any) {
-                                                                        console.error("Error saving to history:", err);
-                                                                        alert("Error al seleccionar: " + err.message);
-                                                                    }
-                                                                }}
-                                                                className="btn-primary"
-                                                                style={{
-                                                                    width: '100%',
-                                                                    padding: '0.8rem',
-                                                                    boxShadow: '0 4px 12px rgba(var(--accent-rgb), 0.3)',
-                                                                    fontWeight: 700,
-                                                                    letterSpacing: '1px',
-                                                                    textTransform: 'uppercase',
-                                                                    fontSize: '0.8rem'
-                                                                }}
-                                                            >VOLVER A SELECCIONAR</button>
-                                                            <button
-                                                                onClick={async (e) => {
-                                                                    e.stopPropagation();
-                                                                    if (!globalThis.confirm(`¿Quitar ${r.name} de favoritos?`)) return;
-                                                                    try {
-                                                                        await favoritosService.deleteFavorito(fav.id);
-                                                                        setFavoritos(prev => prev.filter(item => item.id !== fav.id));
-                                                                    } catch (err: any) {
-                                                                        alert("Error: " + err.message);
-                                                                    }
-                                                                }}
-                                                                className="btn-secondary"
-                                                                style={{
-                                                                    width: '100%', padding: '0.8rem', background: 'rgba(255, 59, 48, 0.1)',
-                                                                    color: '#ff3b30', border: '1px solid rgba(255, 59, 48, 0.3)',
-                                                                    borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600
-                                                                }}
-                                                            >🗑️ Eliminar de favoritos</button>
-                                                        </div>
+                                                {/* Info */}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {list.nombre}
                                                     </div>
-                                                )}
+                                                    <div style={{ fontSize: 'var(--font-xs)', color: 'var(--muted)', marginTop: 2 }}>
+                                                        Toca para ver restaurantes
+                                                    </div>
+                                                </div>
+
+                                                {/* Menu */}
+                                                <ListMenu
+                                                    onRename={() => handleRename(list)}
+                                                    onDelete={() => handleDelete(list)}
+                                                />
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
-                </div>
+                ) : (
+                    // ── DETAIL VIEW (NESTED SPA) ──
+                    selectedEntryForDetail ? (
+                        <div className="fav-detail-view" style={{ paddingTop: '0' }}>
+                            <RestaurantDetailView
+                                restaurant={selectedEntryForDetail.restaurant as any}
+                                onBack={() => navigate(-1)}
+                                subtitle={`En lista: ${selectedList.nombre}`}
+                                actions={
+                                    <div className="detail-actions-column">
+                                        <button className="btn-detail-main" onClick={async () => {
+                                            await historialService.addToHistorial(selectedEntryForDetail.place_id);
+                                            alert(`¡Has seleccionado ${selectedEntryForDetail.restaurant.name}!`);
+                                            navigate('/home');
+                                        }}>
+                                            <Clock size={18} /> Mover a historial
+                                        </button>
+                                        <button className="btn-detail-outline danger" onClick={async () => {
+                                            if (globalThis.confirm(`¿Quitar ${selectedEntryForDetail.restaurant.name} de favoritos?`)) {
+                                                await favoritosService.deleteFavorito(selectedEntryForDetail.id);
+                                                setFavoritos(prev => prev.filter(item => item.id !== selectedEntryForDetail.id));
+                                                setSearchParams({ list: selectedList.id.toString() });
+                                            }
+                                        }}>
+                                            <X size={16} /> Quitar de la lista
+                                        </button>
+                                    </div>
+                                }
+                            />
+                        </div>
+                    ) : (
+                    <div className="fav-detail-view">
+                        {/* Detail Header */}
+                        <div className="fav-detail-header">
+                            <button className="back-link" onClick={() => navigate(-1)}>
+                                <ChevronLeft size={20} /> Mis listas
+                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <span style={{ fontSize: 'var(--font-sm)', color: 'var(--muted)', fontWeight: 600 }}>
+                                    {favoritos.length} {favoritos.length === 1 ? 'restaurante' : 'restaurantes'}
+                                </span>
+                                <ListMenu 
+                                    onRename={() => handleRename(selectedList)} 
+                                    onDelete={() => handleDelete(selectedList)} 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Title Row */}
+                        <div className="fav-detail-title-row">
+                            <div className="fav-large-icon" style={{ background: getIconColor(selectedList.icono || 'Heart') }}>
+                                {renderIcon(selectedList.icono || 'Heart', 28)}
+                            </div>
+                            <div className="fav-title-info">
+                                <h2>{selectedList.nombre}</h2>
+                                <p>{favoritos.length} restaurantes guardados</p>
+                            </div>
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="internal-search-box">
+                            <Search className="search-icon" size={18} />
+                            <input 
+                                type="text" 
+                                placeholder="Buscar en esta lista..." 
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Content */}
+                        {modalLoading ? (
+                            <div style={{ textAlign: 'center', padding: '3rem' }}>
+                                <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: 24, height: 24, animation: 'spin 1s linear infinite', margin: '0 auto' }} />
+                            </div>
+                        ) : filteredFavoritos.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted)' }}>
+                                {searchTerm ? <Search size={40} style={{ opacity: 0.1, marginBottom: '1rem' }} /> : <Heart size={40} style={{ opacity: 0.1, marginBottom: '1rem' }} />}
+                                <p>{searchTerm ? 'No hay resultados para tu búsqueda' : 'Esta lista está vacía'}</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                {filteredFavoritos.map((fav) => {
+                                    const r = fav.restaurant;
+                                    return (
+                                        <div key={fav.id} style={{ marginBottom: '0.75rem' }}>
+                                            <div 
+                                                className="restaurant-compact-card"
+                                                onClick={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
+                                            >
+                                                {/* Left Icon */}
+                                                <div className="compact-img-box">
+                                                    {r.main_photo ? (
+                                                        <img src={r.main_photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    ) : (
+                                                        <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />
+                                                    )}
+                                                </div>
+
+                                                {/* Center Info */}
+                                                <div className="compact-info">
+                                                    <div className="compact-name">{r.name}</div>
+                                                    <div className="compact-meta">
+                                                        <div className="compact-rating">
+                                                            <Star size={12} fill="currentColor" /> {r.rating}
+                                                        </div>
+                                                        <span>({r.user_ratings_total})</span>
+                                                        {r.types && r.types[0] && <span>• {r.types[0].charAt(0).toUpperCase() + r.types[0].slice(1)}</span>}
+                                                    </div>
+                                                    <div className="compact-address">{r.address}</div>
+                                                </div>
+
+                                                {/* Right Action */}
+                                                <ItemMenu 
+                                                    onDelete={async () => {
+                                                        if (!globalThis.confirm(`¿Quitar ${r.name} de favoritos?`)) return;
+                                                        await favoritosService.deleteFavorito(fav.id);
+                                                        setFavoritos(prev => prev.filter(item => item.id !== fav.id));
+                                                    }}
+                                                    onHistory={async () => {
+                                                        await historialService.addToHistorial(fav.place_id);
+                                                        navigate('/home');
+                                                    }}
+                                                    onDetails={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    )
+                )}
+            </main>
+
+            {/* New list modal */}
+            {showNewModal && (
+                <NewListModal
+                    onClose={() => setShowNewModal(false)}
+                    onCreate={handleCreate}
+                />
             )}
         </div>
     );

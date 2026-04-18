@@ -40,7 +40,7 @@ async def create_lista(
     """Crea una nueva lista de favoritos."""
     uid = _get_uid(current_user)
     try:
-        return favoritos_service.create_lista(db, uid, data.nombre)
+        return favoritos_service.create_lista(db, uid, data.nombre, data.icono)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -56,6 +56,24 @@ async def delete_lista(
     success = favoritos_service.delete_lista(db, lista_id, uid)
     if not success:
         raise HTTPException(status_code=404, detail="Lista no encontrada o no autorizada")
+
+
+@router.patch("/listas/{lista_id}")
+async def update_lista(
+    lista_id: int,
+    data: ListaUpdate,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Actualiza el nombre de una lista de favoritos."""
+    uid = _get_uid(current_user)
+    try:
+        lista = favoritos_service.update_lista(db, lista_id, uid, data.nombre)
+        if not lista:
+            raise HTTPException(status_code=404, detail="Lista no encontrada o no autorizada")
+        return lista
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Favoritos de una lista ───────────────────────────────────────────────────

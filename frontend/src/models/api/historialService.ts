@@ -24,15 +24,11 @@ export const historialService = {
     },
 
     getPopulares: async (location?: string, limit: number = 5): Promise<any[]> => {
-        const params = new URLSearchParams();
-        params.append('limit', limit.toString());
-        if (location) {
-            params.append('location', location);
-        }
-
-        const response = await fetch(`${API_URL}/historial/populares?${params.toString()}`, {
-            method: 'GET',
+        const response = await fetch(`${API_URL}/historial/populares`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ location, limit }),
+            credentials: 'include',
         });
 
         if (!response.ok) {
