@@ -11,6 +11,7 @@ import type { FavoritosList, FavoritoItem } from '../models/api/favoritosService
 import { historialService } from '../models/api/historialService';
 import TopBar from '../components/TopBar';
 import RestaurantDetailView from '../components/RestaurantDetailView';
+import { useNotification } from '../components/NotificationSystem';
 
 // ── Icon catalogue ────────────────────────────────────────────────────────────
 const ICONS: { name: string; component: React.FC<any> }[] = [
@@ -277,7 +278,7 @@ const ItemMenu: React.FC<ItemMenuProps> = ({ onDelete, onHistory, onDetails }) =
                         <Map size={14} /> Ver detalles
                     </button>
                     <button onClick={() => { setOpen(false); onHistory(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-light)', fontSize: '0.85rem' }}>
-                        <Clock size={14} /> Mover a historial
+                        <Clock size={14} /> Volver a seleccionar
                     </button>
                     <button onClick={() => { setOpen(false); onDelete(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.85rem' }}>
                         <X size={14} /> Quitar de favoritos
@@ -296,6 +297,7 @@ const FavoritesPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showNewModal, setShowNewModal] = useState(false);
+    const { showNotification, showConfirm } = useNotification();
 
     // Detail View State
     const [selectedList, setSelectedList] = useState<FavoritosList | null>(null);
@@ -384,13 +386,15 @@ const FavoritesPage: React.FC = () => {
     };
 
     const handleDelete = async (list: FavoritosList) => {
-        if (!globalThis.confirm(`¿Eliminar la lista "${list.nombre}" y todos sus restaurantes?`)) return;
+        const confirmed = await showConfirm(`¿Eliminar la lista "${list.nombre}" y todos sus restaurantes?`, 'Eliminar lista', true);
+        if (!confirmed) return;
         try {
             await favoritosService.deleteLista(list.id);
             setLists(prev => prev.filter(l => l.id !== list.id));
+            showNotification(`Lista "${list.nombre}" eliminada`, 'success');
             if (selectedList?.id === list.id) setSearchParams({});
         } catch (err: any) {
-            alert('Error al eliminar: ' + err.message);
+            showNotification('Error al eliminar: ' + err.message, 'error');
         }
     };
 
@@ -404,7 +408,7 @@ const FavoritesPage: React.FC = () => {
                 setSelectedList(prev => prev ? { ...prev, nombre: nuevoNombre.trim() } : null);
             }
         } catch (err: any) {
-            alert('Error al renombrar: ' + err.message);
+            showNotification('Error al renombrar: ' + err.message, 'error');
         }
     };
 
@@ -524,17 +528,27 @@ const FavoritesPage: React.FC = () => {
                                 actions={
                                     <div className="detail-actions-column">
                                         <button className="btn-detail-main" onClick={async () => {
-                                            await historialService.addToHistorial(selectedEntryForDetail.place_id);
-                                            alert(`¡Has seleccionado ${selectedEntryForDetail.restaurant.name}!`);
-                                            navigate('/home');
+                                            try {
+                                                await historialService.addToHistorial(selectedEntryForDetail.place_id);
+                                                showNotification(`Has seleccionado ${selectedEntryForDetail.restaurant.name}`, 'success');
+                                                navigate('/home');
+                                            } catch (err: any) {
+                                                showNotification('Error al seleccionar: ' + err.message, 'error');
+                                            }
                                         }}>
-                                            <Clock size={18} /> Mover a historial
+                                            <UtensilsCrossed size={18} /> Volver a seleccionar
                                         </button>
                                         <button className="btn-detail-outline danger" onClick={async () => {
-                                            if (globalThis.confirm(`¿Quitar ${selectedEntryForDetail.restaurant.name} de favoritos?`)) {
-                                                await favoritosService.deleteFavorito(selectedEntryForDetail.id);
-                                                setFavoritos(prev => prev.filter(item => item.id !== selectedEntryForDetail.id));
-                                                setSearchParams({ list: selectedList.id.toString() });
+                                            const confirmed = await showConfirm(`¿Quitar ${selectedEntryForDetail.restaurant.name} de favoritos?`, 'Quitar de favoritos', true);
+                                            if (confirmed) {
+                                                try {
+                                                    await favoritosService.deleteFavorito(selectedEntryForDetail.id);
+                                                    showNotification(`${selectedEntryForDetail.restaurant.name} quitado de favoritos`, 'success');
+                                                    setFavoritos(prev => prev.filter(item => item.id !== selectedEntryForDetail.id));
+                                                    setSearchParams({ list: selectedList.id.toString() });
+                                                } catch (err: any) {
+                                                    showNotification('Error: ' + err.message, 'error');
+                                                }
                                             }
                                         }}>
                                             <X size={16} /> Quitar de la lista
@@ -628,13 +642,24 @@ const FavoritesPage: React.FC = () => {
                                                 {/* Right Action */}
                                                 <ItemMenu 
                                                     onDelete={async () => {
-                                                        if (!globalThis.confirm(`¿Quitar ${r.name} de favoritos?`)) return;
-                                                        await favoritosService.deleteFavorito(fav.id);
-                                                        setFavoritos(prev => prev.filter(item => item.id !== fav.id));
+                                                        const confirmed = await showConfirm(`¿Quitar ${r.name} de favoritos?`, 'Quitar de favoritos', true);
+                                                        if (!confirmed) return;
+                                                        try {
+                                                            await favoritosService.deleteFavorito(fav.id);
+                                                            showNotification(`${r.name} quitado de favoritos`, 'success');
+                                                            setFavoritos(prev => prev.filter(item => item.id !== fav.id));
+                                                        } catch (err: any) {
+                                                            showNotification('Error: ' + err.message, 'error');
+                                                        }
                                                     }}
                                                     onHistory={async () => {
-                                                        await historialService.addToHistorial(fav.place_id);
-                                                        navigate('/home');
+                                                        try {
+                                                            await historialService.addToHistorial(fav.place_id);
+                                                            showNotification(`¡Has vuelto a elegir ${r.name}!`, 'success');
+                                                            navigate('/home');
+                                                        } catch (err: any) {
+                                                            showNotification('Error: ' + err.message, 'error');
+                                                        }
                                                     }}
                                                     onDetails={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
                                                 />

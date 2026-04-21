@@ -69,7 +69,7 @@ async def add_to_mas_tarde(
     Añade un restaurante a guardar para más tarde.
     """
     uid = _get_uid(current_user)
-    entry = mas_tarde_service.add_to_mas_tarde(db, uid, data.place_id)
+    entry, already_saved = mas_tarde_service.add_to_mas_tarde(db, uid, data.place_id)
     
     details = await recommendation_service.get_place_details(entry.place_id)
     
@@ -77,7 +77,8 @@ async def add_to_mas_tarde(
         "id": entry.id,
         "user_id": entry.user_id,
         "place_id": entry.place_id,
-        "restaurant": details
+        "restaurant": details,
+        "already_saved": already_saved
     }
 
 

@@ -12,16 +12,16 @@ class RecommendationService:
         self.geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
         self._valid_tag_ids = self._load_valid_tags()
 
-    def _load_valid_tags(self) -> set:
+    def _load_valid_tags(self) -> Dict[str, str]:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         tags_path = os.path.join(current_dir, "..", "data", "tags.json")
         try:
             with open(tags_path, 'r', encoding='utf-8') as f:
                 tags = json.load(f)
-                return {tag["id"] for tag in tags}
+                return {tag["id"]: tag["label"] for tag in tags}
         except Exception as e:
             print(f"Error loading tags.json: {e}")
-            return {"restaurant", "cafe", "bar", "bakery"}
+            return {"restaurant": "restaurante", "cafe": "café", "bar": "bar", "bakery": "pastelería"}
 
     async def _geocode_location(self, location: str) -> tuple[float, float]:
         async with httpx.AsyncClient() as client:
@@ -37,9 +37,12 @@ class RecommendationService:
         
         query_parts = []
         if request.categories:
-            query_parts.append(", ".join(request.categories))
+            # Mapear IDs técnicos a etiquetas en lenguaje natural para la búsqueda
+            labels = [self._valid_tag_ids.get(cat, cat.replace("_", " ")) for cat in request.categories]
+            # Usar lógica "OR" explícita para que Google devuelva resultados de todas las categorías
+            query_parts.append(" OR ".join(labels))
         
-        query_parts.append(f"restaurants in {request.location}")
+        query_parts.append(f"restaurantes en {request.location}")
         
         text_query = " ".join(query_parts)
         

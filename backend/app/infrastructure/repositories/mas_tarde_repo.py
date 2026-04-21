@@ -17,9 +17,10 @@ def get_mas_tarde_by_user(db: Session, user_id: str) -> List[MasTarde]:
     )
 
 
-def add_mas_tarde_entry(db: Session, user_id: str, place_id: str) -> MasTarde:
+def add_mas_tarde_entry(db: Session, user_id: str, place_id: str) -> tuple[MasTarde, bool]:
     """
     Inserta una nueva entrada en guardar para más tarde si no existe ya para ese usuario y restaurante.
+    Devuelve la entrada y un booleano indicando si ya existía.
     """
     restaurante_id = restaurante_repo.get_or_create_restaurante(db, place_id)
     
@@ -30,7 +31,7 @@ def add_mas_tarde_entry(db: Session, user_id: str, place_id: str) -> MasTarde:
     ).first()
     
     if existing:
-        return existing
+        return existing, True
         
     entry = MasTarde(
         user_id=user_id,
@@ -39,7 +40,7 @@ def add_mas_tarde_entry(db: Session, user_id: str, place_id: str) -> MasTarde:
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    return entry
+    return entry, False
 
 
 def delete_mas_tarde_entry(db: Session, entry_id: int, user_id: str) -> bool:

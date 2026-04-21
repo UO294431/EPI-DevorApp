@@ -11,6 +11,7 @@ import { valoracionesService } from '../models/api/valoracionesService';
 import type { ValoracionPublica } from '../models/api/valoracionesService';
 import tagsData from '../data/tags.json';
 import RestaurantDetailView from '../components/RestaurantDetailView';
+import { useNotification } from '../components/NotificationSystem';
 
 interface Tag {
     id: string;
@@ -39,6 +40,7 @@ const getCurrencyForCountry = (countryCode: string): string => {
 
 const RestaurantRecommendationPage: React.FC = () => {
     const navigate = useNavigate();
+    const { showNotification } = useNotification();
 
     // Tags Autocomplete
     const [tagInput, setTagInput] = useState('');
@@ -346,11 +348,11 @@ const RestaurantRecommendationPage: React.FC = () => {
                                         onClick={async (e) => {
                                             try {
                                                 await historialService.addToHistorial(selectedEntryForDetail.id);
-                                                alert(`¡Has seleccionado ${selectedEntryForDetail.name}!`);
+                                                showNotification(`¡Has seleccionado ${selectedEntryForDetail.name}!`, 'success');
                                                 navigate('/home');
                                             } catch (err: any) {
                                                 console.error("Error saving to history:", err);
-                                                alert("Error al guardar en el historial: " + err.message);
+                                                showNotification("Error al guardar en el historial: " + err.message, 'error');
                                             }
                                         }}
                                         className="btn-detail-main"
@@ -360,7 +362,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                     <button
                                         onClick={async (e) => {
                                             try {
-                                                await savedForLaterService.saveForLater({
+                                                const response = await savedForLaterService.saveForLater({
                                                     place_id: selectedEntryForDetail.id,
                                                     name: selectedEntryForDetail.name,
                                                     rating: selectedEntryForDetail.rating || 0,
@@ -374,10 +376,14 @@ const RestaurantRecommendationPage: React.FC = () => {
                                                     website_uri: selectedEntryForDetail.website_uri,
                                                     open_now: (selectedEntryForDetail as any).opening_hours?.open_now || selectedEntryForDetail.open_now
                                                 });
-                                                alert(`¡Has guardado ${selectedEntryForDetail.name} para más tarde!`);
+                                                if (response.already_saved) {
+                                                    showNotification(`Ya tienes guardado ${selectedEntryForDetail.name} para más tarde.`, 'warning');
+                                                } else {
+                                                    showNotification(`¡Has guardado ${selectedEntryForDetail.name} para más tarde!`, 'success');
+                                                }
                                             } catch (err: any) {
                                                 console.error("Error saving for later:", err);
-                                                alert(err.message || "Error al guardar para más tarde.");
+                                                showNotification(err.message || "Error al guardar para más tarde.", 'error');
                                             }
                                         }}
                                         type="button"
@@ -601,10 +607,11 @@ const RestaurantRecommendationPage: React.FC = () => {
                                 onClick={async (e) => {
                                     try {
                                         await historialService.addToHistorial(selectedEntryForDetail.id);
+                                        showNotification(`Has seleccionado ${selectedEntryForDetail.name}`, 'success');
                                         navigate('/home');
                                     } catch (err: any) {
                                         console.error("Error saving to history:", err);
-                                        alert("Error al guardar en el historial: " + err.message);
+                                        showNotification("Error al guardar en el historial: " + err.message, 'error');
                                     }
                                 }}
                                 className="btn-detail-main"
@@ -614,7 +621,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                             <button
                                 onClick={async (e) => {
                                     try {
-                                        await savedForLaterService.saveForLater({
+                                        const response = await savedForLaterService.saveForLater({
                                             place_id: selectedEntryForDetail.id,
                                             name: selectedEntryForDetail.name,
                                             rating: selectedEntryForDetail.rating || 0,
@@ -627,10 +634,14 @@ const RestaurantRecommendationPage: React.FC = () => {
                                             google_maps_uri: selectedEntryForDetail.google_maps_uri,
                                             website_uri: selectedEntryForDetail.website_uri,
                                         });
-                                        alert(`¡Has guardado ${selectedEntryForDetail.name} para más tarde! ⏰`);
+                                        if (response.already_saved) {
+                                            showNotification(`Ya tienes guardado ${selectedEntryForDetail.name} para más tarde.`, 'warning');
+                                        } else {
+                                            showNotification(`Has guardado ${selectedEntryForDetail.name} para más tarde`, 'success');
+                                        }
                                     } catch (err: any) {
                                         console.error("Error saving for later:", err);
-                                        alert(err.message || "Error al guardar para más tarde.");
+                                        showNotification(err.message || "Error al guardar para más tarde.", 'error');
                                     }
                                 }}
                                 type="button"

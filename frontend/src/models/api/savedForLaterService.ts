@@ -54,7 +54,7 @@ class SavedForLaterService {
         }));
     }
 
-    async saveForLater(restaurantData: { place_id: string;[key: string]: any }): Promise<SavedForLaterEntry> {
+    async saveForLater(restaurantData: { place_id: string;[key: string]: any }): Promise<{ entry: SavedForLaterEntry, already_saved: boolean }> {
         const response = await fetch(`${API_URL}/mas-tarde`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -71,19 +71,22 @@ class SavedForLaterService {
 
         // Mapeamos lo develto al formato de la vista
         return {
-            id: String(item.id),
-            name: item.restaurant.name,
-            rating: item.restaurant.rating,
-            user_ratings_total: item.restaurant.user_ratings_total,
-            types: item.restaurant.types,
-            address: item.restaurant.address,
-            main_photo: item.restaurant.main_photo,
-            summary: item.restaurant.summary,
-            opening_hours: item.restaurant.opening_hours,
-            open_now: item.restaurant.open_now,
-            google_maps_uri: item.restaurant.google_maps_uri,
-            website_uri: item.restaurant.website_uri,
-            place_id: item.place_id,
+            entry: {
+                id: String(item.id),
+                name: item.restaurant.name,
+                rating: item.restaurant.rating,
+                user_ratings_total: item.restaurant.user_ratings_total,
+                types: item.restaurant.types,
+                address: item.restaurant.address,
+                main_photo: item.restaurant.main_photo,
+                summary: item.restaurant.summary,
+                opening_hours: item.restaurant.opening_hours,
+                open_now: item.restaurant.open_now,
+                google_maps_uri: item.restaurant.google_maps_uri,
+                website_uri: item.restaurant.website_uri,
+                place_id: item.place_id,
+            },
+            already_saved: item.already_saved
         };
     }
 

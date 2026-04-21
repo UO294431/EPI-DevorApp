@@ -12,12 +12,14 @@ import { valoracionesService } from '../models/api/valoracionesService';
 import type { ValoracionPublica } from '../models/api/valoracionesService';
 import TopBar from '../components/TopBar';
 import RestaurantDetailView from '../components/RestaurantDetailView';
+import { useNotification } from '../components/NotificationSystem';
 
 /* ─── HomePage ───────────────────────────────────── */
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { submitLogout } = useLogout(() => navigate('/login'));
+  const { showNotification } = useNotification();
 
   const [nombre, setNombre] = useState('');
   const [preferredLocation, setPreferredLocation] = useState('');
@@ -160,16 +162,16 @@ const HomePage: React.FC = () => {
   const handleSelect = async (place: any) => {
     try {
       await historialService.addToHistorial(place.id);
-      alert(`¡Has seleccionado ${place.name}!`);
+      showNotification(`Has seleccionado ${place.name}`, 'success');
       navigate('/home');
     } catch (e: any) {
-      alert('Error al seleccionar el restaurante: ' + e.message);
+      showNotification('Error al seleccionar el restaurante: ' + e.message, 'error');
     }
   };
 
   const handleSave = async (place: any) => {
     try {
-      await savedForLaterService.saveForLater({
+      const response = await savedForLaterService.saveForLater({
         place_id: place.id, name: place.name,
         rating: place.rating ?? 0, user_ratings_total: place.user_ratings_total ?? 0,
         types: place.types ?? [], address: place.address ?? '',
@@ -178,9 +180,13 @@ const HomePage: React.FC = () => {
         google_maps_uri: place.google_maps_uri,
         website_uri: place.website_uri,
       });
-      alert(`${place.name} guardado para más tarde.`);
+      if (response.already_saved) {
+        showNotification(`Ya tienes guardado ${place.name} para más tarde.`, 'warning');
+      } else {
+        showNotification(`${place.name} guardado para más tarde.`, 'success');
+      }
     } catch (e: any) {
-      alert(e.message);
+      showNotification(e.message, 'error');
     }
   };
 

@@ -13,6 +13,7 @@ import { valoracionesService } from '../models/api/valoracionesService';
 import type { FavoritosList } from '../models/api/favoritosService';
 import TopBar from '../components/TopBar';
 import RestaurantDetailView from '../components/RestaurantDetailView';
+import { useNotification } from '../components/NotificationSystem';
 
 interface HistoryEntry {
     id: string;
@@ -138,6 +139,7 @@ const HistoryPage: React.FC = () => {
     const [ratedPlaceIds, setRatedPlaceIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { showNotification, showConfirm } = useNotification();
 
     // Filter and Detail state
     const [searchParams, setSearchParams] = useSearchParams();
@@ -302,10 +304,10 @@ const HistoryPage: React.FC = () => {
                 comentario: ratingComment
             });
             setRatedPlaceIds(prev => new Set([...prev, selectedEntryForRating.place_id]));
-            alert(`¡Gracias por valorar ${selectedEntryForRating.name}! 🌟`);
+            showNotification(`Gracias por valorar ${selectedEntryForRating.name}`, 'success');
             setIsRatingModalOpen(false);
         } catch (error: any) {
-            alert(error.message || "Hubo un error al guardar la valoración.");
+            showNotification(error.message || "Hubo un error al guardar la valoración.", 'error');
         } finally {
             setModalLoading(false);
         }
@@ -331,10 +333,10 @@ const HistoryPage: React.FC = () => {
         try {
             setModalLoading(true);
             await favoritosService.addFavorito(listId, selectedEntryForFav.place_id);
-            alert(`¡${selectedEntryForFav.name} añadido a favoritos! ⭐`);
+            showNotification(`${selectedEntryForFav.name} añadido a favoritos`, 'success');
             setIsFavModalOpen(false);
         } catch (err: any) {
-            alert("Error: " + err.message);
+            showNotification("Error: " + err.message, 'error');
         } finally {
             setModalLoading(false);
         }
@@ -346,11 +348,11 @@ const HistoryPage: React.FC = () => {
             setModalLoading(true);
             const newList = await favoritosService.crearLista(newListName.trim());
             await favoritosService.addFavorito(newList.id, selectedEntryForFav.place_id);
-            alert(`¡Lista "${newListName}" creada y ${selectedEntryForFav.name} añadido! ⭐`);
+            showNotification(`Lista "${newListName}" creada y ${selectedEntryForFav.name} añadido`, 'success');
             setIsFavModalOpen(false);
             setNewListName('Mis Favoritos');
         } catch (err: any) {
-            alert("Error: " + err.message);
+            showNotification("Error: " + err.message, 'error');
         } finally {
             setModalLoading(false);
         }
@@ -359,21 +361,23 @@ const HistoryPage: React.FC = () => {
     const handleRechoose = async (entry: HistoryEntry) => {
         try {
             await historialService.addToHistorial(entry.place_id);
-            alert(`¡Has vuelto a elegir ${entry.name}! 🍽️`);
+            showNotification(`Has vuelto a elegir ${entry.name}`, 'success');
             navigate('/home');
         } catch (err: any) {
-            alert("Error: " + err.message);
+            showNotification("Error: " + err.message, 'error');
         }
     };
 
     const handleDeleteFromHistory = async (entry: HistoryEntry) => {
-        if (!globalThis.confirm(`¿Eliminar ${entry.name} de tu historial?`)) return;
+        const confirmed = await showConfirm(`¿Eliminar ${entry.name} de tu historial?`, 'Eliminar del historial', true);
+        if (!confirmed) return;
         try {
             await historialService.deleteFromHistorial(entry.id);
+            showNotification(`${entry.name} eliminado del historial`, 'success');
             setHistoryEntries(prev => prev.filter(item => item.id !== entry.id));
             if (selectedEntryForDetail?.id === entry.id) setSearchParams({});
         } catch (err: any) {
-            alert("Error al eliminar: " + err.message);
+            showNotification("Error al eliminar: " + err.message, 'error');
         }
     };
 

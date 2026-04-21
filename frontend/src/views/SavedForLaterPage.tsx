@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-    Clock, Search, Star, UtensilsCrossed, X, MoreVertical, 
+import {
+    Clock, Search, Star, UtensilsCrossed, X, MoreVertical,
     Map, Globe, Trash2, ChevronRight, Plus, Bookmark
 } from 'lucide-react';
 import { savedForLaterService } from '../models/api/savedForLaterService';
@@ -9,6 +9,7 @@ import type { SavedForLaterEntry } from '../models/api/savedForLaterService';
 import { historialService } from '../models/api/historialService';
 import TopBar from '../components/TopBar';
 import RestaurantDetailView from '../components/RestaurantDetailView';
+import { useNotification } from '../components/NotificationSystem';
 
 // ── Item Menu (for restaurants) ──────────────────────────────────────────────
 interface ItemMenuProps {
@@ -50,7 +51,7 @@ const ItemMenu: React.FC<ItemMenuProps> = ({ onDelete, onHistory, onDetails }) =
                         <Map size={14} /> Ver detalles
                     </button>
                     <button onClick={() => { setOpen(false); onHistory(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-light)', fontSize: '0.85rem' }}>
-                        <Clock size={14} /> Mover a historial
+                        <Clock size={14} /> Volver a seleccionar
                     </button>
                     <button onClick={() => { setOpen(false); onDelete(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.85rem' }}>
                         <X size={14} /> Quitar de la lista
@@ -70,6 +71,7 @@ const SavedForLaterPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<SavedForLaterEntry | null>(null);
+    const { showNotification, showConfirm } = useNotification();
 
     // Sync selected entry with URL parameter 'detail'
     useEffect(() => {
@@ -104,14 +106,14 @@ const SavedForLaterPage: React.FC = () => {
             await savedForLaterService.deleteSaved(id);
             setSavedEntries(prev => prev.filter(item => item.id !== id));
         } catch (err: any) {
-            alert("Error al eliminar: " + err.message);
+            showNotification("Error al eliminar: " + err.message, 'error');
         }
     };
 
     const filteredEntries = useMemo(() => {
         if (!searchTerm.trim()) return savedEntries;
         const lowSearch = searchTerm.toLowerCase();
-        return savedEntries.filter(entry => 
+        return savedEntries.filter(entry =>
             entry.name.toLowerCase().includes(lowSearch) ||
             entry.address.toLowerCase().includes(lowSearch)
         );
@@ -120,7 +122,7 @@ const SavedForLaterPage: React.FC = () => {
     if (selectedEntryForDetail) {
         return (
             <div className="page-screen">
-                <RestaurantDetailView 
+                <RestaurantDetailView
                     restaurant={selectedEntryForDetail as any}
                     onBack={() => navigate(-1)}
                     actions={
@@ -130,10 +132,10 @@ const SavedForLaterPage: React.FC = () => {
                                     try {
                                         await historialService.addToHistorial(selectedEntryForDetail.place_id);
                                         await handleRemoveEntry(selectedEntryForDetail.id);
-                                        alert(`¡Has seleccionado ${selectedEntryForDetail.name}!\n\n¡Que disfrutes de una deliciosa comida! 🍽️`);
+                                        showNotification(`Has seleccionado ${selectedEntryForDetail.name}`, 'success');
                                         navigate('/home');
                                     } catch (err: any) {
-                                        alert("Error al seleccionar: " + err.message);
+                                        showNotification("Error al seleccionar: " + err.message, 'error');
                                     }
                                 }}
                                 className="btn-detail-main"
@@ -143,11 +145,13 @@ const SavedForLaterPage: React.FC = () => {
                                     letterSpacing: '1px',
                                     textTransform: 'uppercase'
                                 }}>
-                                SELECCIONAR ESTE RESTAURANTE
+                                <UtensilsCrossed size={18} /> Volver a seleccionar
                             </button>
                             <button className="btn-detail-outline danger" onClick={async () => {
-                                if (globalThis.confirm(`¿Quitar ${selectedEntryForDetail.name} de la lista?`)) {
+                                const confirmed = await showConfirm(`¿Quitar ${selectedEntryForDetail.name} de la lista?`, 'Quitar de la lista', true);
+                                if (confirmed) {
                                     await handleRemoveEntry(selectedEntryForDetail.id);
+                                    showNotification(`${selectedEntryForDetail.name} quitado de la lista`, 'success');
                                     setSearchParams({});
                                 }
                             }}>
@@ -185,9 +189,9 @@ const SavedForLaterPage: React.FC = () => {
                 {/* Search Bar */}
                 <div className="internal-search-box">
                     <Search className="search-icon" size={18} />
-                    <input 
-                        type="text" 
-                        placeholder="Buscar en la lista..." 
+                    <input
+                        type="text"
+                        placeholder="Buscar en la lista..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
@@ -225,7 +229,7 @@ const SavedForLaterPage: React.FC = () => {
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 {filteredEntries.map((entry: any) => (
                                     <div key={entry.id} style={{ marginBottom: '0.75rem' }}>
-                                        <div 
+                                        <div
                                             className="restaurant-compact-card"
                                             onClick={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
                                         >
@@ -249,16 +253,23 @@ const SavedForLaterPage: React.FC = () => {
                                                 <div className="compact-address">{entry.address}</div>
                                             </div>
 
-                                            <ItemMenu 
+                                            <ItemMenu
                                                 onDelete={async () => {
-                                                    if (globalThis.confirm(`¿Quitar ${entry.name}?`)) {
+                                                    const confirmed = await showConfirm(`¿Quitar ${entry.name}?`, 'Quitar lugar', true);
+                                                    if (confirmed) {
                                                         await handleRemoveEntry(entry.id);
+                                                        showNotification(`${entry.name} quitado de la lista`, 'success');
                                                     }
                                                 }}
                                                 onHistory={async () => {
-                                                    await historialService.addToHistorial(entry.place_id);
-                                                    await handleRemoveEntry(entry.id);
-                                                    navigate('/home');
+                                                    try {
+                                                        await historialService.addToHistorial(entry.place_id);
+                                                        await handleRemoveEntry(entry.id);
+                                                        showNotification(`Has elegido ${entry.name}`, 'success');
+                                                        navigate('/home');
+                                                    } catch (err: any) {
+                                                        showNotification("Error: " + err.message, 'error');
+                                                    }
                                                 }}
                                                 onDetails={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
                                             />
@@ -272,7 +283,7 @@ const SavedForLaterPage: React.FC = () => {
 
                 {/* Footer Action */}
                 <div style={{ marginTop: '2rem' }}>
-                    <button 
+                    <button
                         onClick={() => navigate('/recommend-restaurants')}
                         style={{
                             width: '100%', padding: '16px',

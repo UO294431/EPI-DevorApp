@@ -7,6 +7,7 @@ import {
 import { valoracionesService } from '../models/api/valoracionesService';
 import type { ValoracionDetailedResponse } from '../models/api/valoracionesService';
 import TopBar from '../components/TopBar';
+import { useNotification } from '../components/NotificationSystem';
 
 const ValoracionesPage: React.FC = () => {
     const navigate = useNavigate();
@@ -14,6 +15,7 @@ const ValoracionesPage: React.FC = () => {
     const [valoraciones, setValoraciones] = useState<ValoracionDetailedResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { showNotification, showConfirm } = useNotification();
 
     // Modals state
     const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
@@ -81,9 +83,9 @@ const ValoracionesPage: React.FC = () => {
                     : v
             ));
             setIsRatingModalOpen(false);
-            alert(`¡Has actualizado la reseña de ${selectedEntryForRating.restaurant?.name || 'este restaurante'}! 🌟`);
+            showNotification(`Has actualizado la reseña de ${selectedEntryForRating.restaurant?.name || 'este restaurante'}`, 'success');
         } catch (error: any) {
-            alert(error.message || "Hubo un error al guardar la valoración.");
+            showNotification(error.message || "Hubo un error al guardar la valoración.", 'error');
         } finally {
             setModalLoading(false);
         }
@@ -91,14 +93,15 @@ const ValoracionesPage: React.FC = () => {
 
     const handleDeleteRating = async (val: ValoracionDetailedResponse, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!globalThis.confirm(`¿Estás seguro de que deseas eliminar permanentemente la reseña de ${val.restaurant?.name || 'este restaurante'}?`)) return;
+        const confirmed = await showConfirm(`¿Estás seguro de que deseas eliminar la reseña de ${val.restaurant?.name || 'este restaurante'}?`, 'Eliminar reseña', true);
+        if (!confirmed) return;
         try {
             await valoracionesService.eliminarValoracion(val.place_id);
             setValoraciones(prev => prev.filter(v => v.place_id !== val.place_id));
             setExpandedEntryId(null);
-            alert('La reseña ha sido eliminada con éxito.');
+            showNotification('La reseña ha sido eliminada con éxito.', 'success');
         } catch (error: any) {
-            alert(error.message || "Hubo un error al borrar la valoración.");
+            showNotification(error.message || "Hubo un error al borrar la valoración.", 'error');
         }
     };
 
