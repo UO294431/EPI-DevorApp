@@ -50,7 +50,7 @@ class RecommendationService:
             "Content-Type": "application/json",
             "X-Goog-Api-Key": self.api_key,
             # Definimos los campos que queremos recibir
-            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.priceLevel,places.rating,places.userRatingCount,places.types,places.photos,places.googleMapsUri,places.websiteUri,places.regularOpeningHours,places.currentOpeningHours,places.editorialSummary,places.location,nextPageToken"
+            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.priceLevel,places.rating,places.userRatingCount,places.types,places.photos,places.googleMapsUri,places.websiteUri,places.regularOpeningHours,places.currentOpeningHours,places.editorialSummary,places.location,nextPageToken"
         }
         
         payload = {
@@ -207,7 +207,8 @@ class RecommendationService:
                 "open_now": place.get("currentOpeningHours", {}).get("openNow"),
                 "summary": place.get("editorialSummary", {}).get("text", ""),
                 "latitude": place.get("location", {}).get("latitude"),
-                "longitude": place.get("location", {}).get("longitude")
+                "longitude": place.get("location", {}).get("longitude"),
+                "phone_number": place.get("nationalPhoneNumber")
             })
         return formatted
 
@@ -226,7 +227,7 @@ class RecommendationService:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": "id,displayName,formattedAddress,priceLevel,rating,userRatingCount,types,photos,googleMapsUri,websiteUri,regularOpeningHours,currentOpeningHours,editorialSummary,location"
+            "X-Goog-FieldMask": "id,displayName,formattedAddress,nationalPhoneNumber,priceLevel,rating,userRatingCount,types,photos,googleMapsUri,websiteUri,regularOpeningHours,currentOpeningHours,editorialSummary,location"
         }
         
         async with httpx.AsyncClient() as client:

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
     ChevronLeft, Star, Clock, Map, Globe, ChevronDown, ChevronUp, 
-    Link as LinkIcon 
+    Link as LinkIcon, Phone 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from './TopBar';
@@ -18,6 +18,7 @@ interface RestaurantDetailViewProps {
         open_now?: boolean;
         website_uri?: string;
         google_maps_uri?: string;
+        phone_number?: string;
     };
     subtitle?: string;
     backText?: string;
@@ -165,9 +166,16 @@ const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
                         Enlaces de interés
                     </div>
                     <div className="interest-links-row">
-                        <a href={restaurant.website_uri} target="_blank" rel="noopener noreferrer" className="interest-link-btn">
-                            <Globe size={18} /> Sitio web
-                        </a>
+                        {restaurant.phone_number && (
+                            <a href={`tel:${restaurant.phone_number.replace(/\s+/g, '')}`} className="interest-link-btn">
+                                <Phone size={18} /> Llamar
+                            </a>
+                        )}
+                        {restaurant.website_uri && (
+                            <a href={restaurant.website_uri} target="_blank" rel="noopener noreferrer" className="interest-link-btn">
+                                <Globe size={18} /> Sitio web
+                            </a>
+                        )}
                         <a href={restaurant.google_maps_uri} target="_blank" rel="noopener noreferrer" className="interest-link-btn">
                             <Map size={18} /> Google Maps
                         </a>

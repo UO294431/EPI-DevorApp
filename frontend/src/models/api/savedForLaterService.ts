@@ -17,6 +17,7 @@ export interface SavedForLaterEntry {
     open_now?: boolean;
     google_maps_uri?: string;
     website_uri?: string;
+    phone_number?: string;
     saved_at?: string; // Mantenemos para posible uso futuro, aunque no venga de backend
 }
 
@@ -50,6 +51,7 @@ class SavedForLaterService {
             open_now: item.restaurant.open_now,
             google_maps_uri: item.restaurant.google_maps_uri,
             website_uri: item.restaurant.website_uri,
+            phone_number: item.restaurant.phone_number,
             place_id: item.place_id,
         }));
     }
@@ -84,6 +86,7 @@ class SavedForLaterService {
                 open_now: item.restaurant.open_now,
                 google_maps_uri: item.restaurant.google_maps_uri,
                 website_uri: item.restaurant.website_uri,
+                phone_number: item.restaurant.phone_number,
                 place_id: item.place_id,
             },
             already_saved: item.already_saved
