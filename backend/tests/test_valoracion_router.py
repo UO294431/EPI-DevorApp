@@ -23,11 +23,14 @@ def dummy_user():
 from app.models.entities.restaurante import Restaurante
 
 
+from datetime import datetime
+
 @pytest.fixture
 def dummy_valoracion():
     return Valoracion(
         id=1, user_id="test_uid", restaurante=Restaurante(place_id="place1"),
-        calidad=5, precio=4, higiene=3, trato=5, comentario="Excelente", me_gustas=0
+        calidad=5, precio=4, higiene=3, trato=5, comentario="Excelente", me_gustas=0,
+        fecha=datetime.now()
     )
 
 
@@ -171,11 +174,11 @@ async def test_obtener_resenas_restaurante_con_datos(mock_service, mock_get_uid,
     mock_service.obtener_resenas_restaurante.return_value = [
         ValoracionPublicaResponse(
             id=1, username="pepe", calidad=5, precio=4,
-            higiene=3, trato=5, comentario="Genial", me_gustas=2
+            higiene=3, trato=5, comentario="Genial", me_gustas=2, fecha=datetime.now()
         ),
         ValoracionPublicaResponse(
             id=2, username="ana", calidad=3, precio=3,
-            higiene=4, trato=4, comentario=None, me_gustas=0
+            higiene=4, trato=4, comentario=None, me_gustas=0, fecha=datetime.now()
         ),
     ]
 
@@ -222,7 +225,7 @@ async def test_dar_me_gusta_exitoso(mock_service, mock_get_uid, dummy_user):
     mock_get_uid.return_value = "test_uid"
     mock_service.dar_me_gusta.return_value = ValoracionPublicaResponse(
         id=1, username="pepe", calidad=5, precio=4,
-        higiene=3, trato=5, comentario="Genial", me_gustas=3
+        higiene=3, trato=5, comentario="Genial", me_gustas=3, fecha=datetime.now()
     )
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user

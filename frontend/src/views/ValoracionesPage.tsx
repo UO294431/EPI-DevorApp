@@ -234,7 +234,7 @@ const ValoracionesPage: React.FC = () => {
 
                                                     {val.comentario && (
                                                         <div className="review-comment-bubble">
-                                                            "{val.comentario}"
+                                                            &ldquo;{val.comentario}&rdquo;
                                                         </div>
                                                     )}
 

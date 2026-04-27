@@ -29,12 +29,12 @@ def test_get_lista_by_id(mock_repo):
 def test_create_lista_success(mock_repo):
     db_mock = MagicMock()
     mock_repo.get_lista_by_nombre.return_value = None
-    mock_repo.create_lista.return_value = ListaFavoritos(id=1, user_id="uid1", nombre="Fav1")
+    mock_repo.create_lista.return_value = ListaFavoritos(id=1, user_id="uid1", nombre="Fav1", icono="Heart")
     
     result = favoritos_service.create_lista(db_mock, "uid1", "Fav1")
     
     assert result.id == 1
-    mock_repo.create_lista.assert_called_once_with(db_mock, "uid1", "Fav1")
+    mock_repo.create_lista.assert_called_once_with(db_mock, "uid1", "Fav1", "Heart")
 
 @patch("app.services.favoritos_service.favoritos_repo")
 def test_create_lista_duplicate(mock_repo):

@@ -39,7 +39,7 @@ describe('favoritosService', () => {
 
         expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('/favoritos/listas'), expect.objectContaining({ 
             method: 'POST',
-            body: JSON.stringify({ nombre: 'Favoritos' })
+            body: JSON.stringify({ nombre: 'Favoritos', icono: 'Heart' })
         }));
         expect(result).toEqual(mockListas[0]);
     });

@@ -811,7 +811,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                                                 fontStyle: 'italic',
                                                                 fontWeight: 600
                                                             }}>
-                                                                "{resena.comentario}"
+                                                                &ldquo;{resena.comentario}&rdquo;
                                                             </p>
                                                         )}
 

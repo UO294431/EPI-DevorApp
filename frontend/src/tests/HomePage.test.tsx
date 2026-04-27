@@ -7,10 +7,35 @@ import HomePage from '../views/HomePage';
 vi.mock('../models/api/authService', () => ({
     authService: {
         logout: vi.fn(),
+        getMe: vi.fn(),
+    },
+}));
+
+// ── Mock historialService ─────────────────────────────────────────────────────
+vi.mock('../models/api/historialService', () => ({
+    historialService: {
+        getPopulares: vi.fn(),
+        addToHistorial: vi.fn(),
+    },
+}));
+
+// ── Mock savedForLaterService ─────────────────────────────────────────────────
+vi.mock('../models/api/savedForLaterService', () => ({
+    savedForLaterService: {
+        saveForLater: vi.fn(),
+    },
+}));
+
+// ── Mock valoracionesService ──────────────────────────────────────────────────
+vi.mock('../models/api/valoracionesService', () => ({
+    valoracionesService: {
+        obtenerResenasRestaurante: vi.fn(),
+        darMeGusta: vi.fn(),
     },
 }));
 
 import { authService } from '../models/api/authService';
+import { historialService } from '../models/api/historialService';
 
 // Mock de useNavigate para poder verificar redirecciones
 const mockNavigate = vi.fn();
@@ -22,6 +47,16 @@ vi.mock('react-router-dom', async (importOriginal) => {
     };
 });
 
+// Mock useNotification
+const mockShowNotification = vi.fn();
+const mockShowConfirm = vi.fn();
+vi.mock('../components/NotificationSystem', () => ({
+    useNotification: () => ({
+        showNotification: mockShowNotification,
+        showConfirm: mockShowConfirm,
+    }),
+}));
+
 const renderHomePage = () =>
     render(
         <MemoryRouter initialEntries={['/home']}>
@@ -29,88 +64,47 @@ const renderHomePage = () =>
         </MemoryRouter>
     );
 
-describe('HomePage (Cerrar Sesión)', () => {
+describe('HomePage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-    });
-
-    // ── 1. Renderizado básico ────────────────────────────────────────────────
-    it('debe renderizar el mensaje de bienvenida y el botón de cerrar sesión', () => {
-        renderHomePage();
-
-        expect(screen.getByRole('heading', { name: 'Bienvenido' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Cerrar Sesión' })).toBeInTheDocument();
-    });
-
-    // ── 2. Llamada a authService.logout ──────────────────────────────────────
-    it('debe llamar a authService.logout al hacer clic en "Cerrar Sesión"', async () => {
-        (authService.logout as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-
-        renderHomePage();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Cerrar Sesión' }));
-
-        await waitFor(() => {
-            expect(authService.logout).toHaveBeenCalledTimes(1);
+        // Por defecto, getMe devuelve un usuario básico
+        (authService.getMe as any).mockResolvedValue({
+            nombre: 'Usuario',
+            username: 'usuario',
+            ubicacion: 'Valencia',
         });
+        // getPopulares devuelve lista vacía por defecto (evita llamadas a geolocalización)
+        (historialService.getPopulares as any).mockResolvedValue([]);
     });
 
-    // ── 3. Redirección tras cierre de sesión exitoso ──────────────────────────
-    it('debe redirigir a /login tras un logout exitoso', async () => {
-        (authService.logout as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    it('debe renderizar la bienvenida y el buscador', async () => {
+        renderHomePage();
+        expect(screen.getByText(/¿Qué quieres comer hoy?/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Buscar restaurantes/i })).toBeInTheDocument();
+    });
+
+    it('debe llamar a authService.logout al cerrar sesión desde el menú', async () => {
+        (authService.logout as any).mockResolvedValue(undefined);
 
         renderHomePage();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Cerrar Sesión' }));
+        // Abrir menú lateral
+        const menuBtn = screen.getByLabelText(/Abrir menú/i);
+        fireEvent.click(menuBtn);
+
+        // El menú se renderiza vía Portal, así que debería ser visible en el document.body
+        const logoutBtn = await screen.findByRole('button', { name: /Cerrar sesión/i });
+        fireEvent.click(logoutBtn);
 
         await waitFor(() => {
+            expect(authService.logout).toHaveBeenCalled();
             expect(mockNavigate).toHaveBeenCalledWith('/login');
         });
     });
 
-    // ── 4. Error en el logout ────────────────────────────────────────────────
-    it('debe mostrar mensaje de error si el logout falla', async () => {
-        (authService.logout as ReturnType<typeof vi.fn>).mockRejectedValue(
-            new Error('Error al cerrar sesión')
-        );
-
+    it('debe navegar a la búsqueda al pulsar el botón principal', () => {
         renderHomePage();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Cerrar Sesión' }));
-
-        await waitFor(() => {
-            expect(screen.getByText('Error al cerrar sesión')).toBeInTheDocument();
-        });
-
-        // No debe redirigir si hay error
-        expect(mockNavigate).not.toHaveBeenCalled();
-    });
-
-    // ── 5. El botón se deshabilita mientras carga ────────────────────────────
-    it('debe deshabilitar el botón y cambiar su texto mientras se procesa el logout', async () => {
-        (authService.logout as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
-
-        renderHomePage();
-
-        const btn = screen.getByRole('button', { name: 'Cerrar Sesión' });
-        fireEvent.click(btn);
-
-        await waitFor(() => {
-            expect(btn).toBeDisabled();
-            expect(btn).toHaveTextContent('Cerrando sesión...');
-        });
-    });
-
-    // ── 6. Botón "Ver Historial" presente ───────────────────────────────────
-    it('debe renderizar el botón "Ver Historial"', () => {
-        renderHomePage();
-        expect(screen.getByRole('button', { name: 'Ver Historial' })).toBeInTheDocument();
-    });
-
-    // ── 7. Navegación a /history al hacer clic en "Ver Historial" ───────────
-    it('debe navegar a /history al hacer clic en "Ver Historial"', () => {
-        renderHomePage();
-        fireEvent.click(screen.getByRole('button', { name: 'Ver Historial' }));
-        expect(mockNavigate).toHaveBeenCalledWith('/history');
+        fireEvent.click(screen.getByRole('button', { name: /Buscar restaurantes/i }));
+        expect(mockNavigate).toHaveBeenCalledWith('/recommend-restaurants');
     });
 });

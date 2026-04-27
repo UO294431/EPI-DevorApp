@@ -141,20 +141,22 @@ describe('LoginPage', () => {
 
         fireEvent.click(screen.getByText('¿Olvidaste tu contraseña?'));
 
-        expect(screen.getByText('Restablecer contraseña')).toBeInTheDocument();
+        // El componente real muestra 'Recuperar contraseña'
+        expect(screen.getByText('Recuperar contraseña')).toBeInTheDocument();
         expect(screen.getByLabelText('Correo electrónico')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Enviar enlace' })).toBeInTheDocument();
-        expect(screen.getByText('Volver al login')).toBeInTheDocument();
+        // El componente real muestra 'Volver al inicio de sesión'
+        expect(screen.getByText('Volver al inicio de sesión')).toBeInTheDocument();
     });
 
     // ── 8. Volver al login desde recuperación ────────────────────────────────
-    it('debe volver al formulario de login al hacer clic en "Volver al login"', () => {
+    it('debe volver al formulario de login al hacer clic en "Volver al inicio de sesión"', () => {
         renderLoginPage();
 
         fireEvent.click(screen.getByText('¿Olvidaste tu contraseña?'));
-        expect(screen.getByText('Restablecer contraseña')).toBeInTheDocument();
+        expect(screen.getByText('Recuperar contraseña')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByText('Volver al login'));
+        fireEvent.click(screen.getByText('Volver al inicio de sesión'));
         expect(screen.getByText('Iniciar sesión')).toBeInTheDocument();
     });
 
