@@ -119,6 +119,7 @@ def get_usuario_by_uid(uid: str) -> Optional[Usuario]:
     profile: dict = doc.to_dict() or {}
 
     return Usuario(
+        uid=uid,
         username=profile.get("username", uid),
         email=user_record.email or "",
         nombre=profile.get("nombre", ""),

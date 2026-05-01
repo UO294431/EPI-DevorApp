@@ -13,7 +13,7 @@ async def search_recommendations(
     current_user: Annotated[Usuario, Depends(get_current_user)]
 ):
     try:
-        response_data = await recommendation_service.search_restaurants(request)
+        response_data = await recommendation_service.search_restaurants(request, current_user.uid)
         return response_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al buscar recomendaciones: {str(e)}")

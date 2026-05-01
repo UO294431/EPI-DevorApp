@@ -1,3 +1,5 @@
+import { cacheService } from './cacheService';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export interface HistorialEntry {
@@ -7,8 +9,15 @@ export interface HistorialEntry {
     fecha_acceso: string;
 }
 
+const CACHE_KEYS = {
+    HISTORIAL: 'historial',
+};
+
 export const historialService = {
     getHistorial: async (): Promise<HistorialEntry[]> => {
+        const cached = cacheService.get<HistorialEntry[]>(CACHE_KEYS.HISTORIAL);
+        if (cached) return cached;
+
         const response = await fetch(`${API_URL}/historial`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -20,10 +29,13 @@ export const historialService = {
             throw new Error(data.detail || 'Error al obtener el historial');
         }
 
-        return await response.json();
+        const data = await response.json();
+        cacheService.set(CACHE_KEYS.HISTORIAL, data);
+        return data;
     },
 
     getPopulares: async (location?: string, limit: number = 5): Promise<any[]> => {
+        // We don't cache this as it might depend on location and changes often
         const response = await fetch(`${API_URL}/historial/populares`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -52,7 +64,9 @@ export const historialService = {
             throw new Error(data.detail || 'Error al añadir al historial');
         }
 
-        return await response.json();
+        const data = await response.json();
+        cacheService.invalidate(CACHE_KEYS.HISTORIAL);
+        return data;
     },
 
     deleteFromHistorial: async (entryId: string): Promise<void> => {
@@ -66,5 +80,8 @@ export const historialService = {
             const data = await response.json().catch(() => ({}));
             throw new Error(data.detail || 'Error al eliminar del historial');
         }
+
+        cacheService.invalidate(CACHE_KEYS.HISTORIAL);
     }
 };
+

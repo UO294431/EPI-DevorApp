@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # PostgreSQL (SQLAlchemy)
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/tfg_db"
 
+    # Microservicio IA (Keras)
+    KERAS_API_URL: str = "http://127.0.0.1:8001/predict"
+
     # JWT
     SECRET_KEY: str = os.getenv(
         "SECRET_KEY", "CAMBIA_ESTO_EN_PRODUCCION_usa_openssl_rand_hex_32"

@@ -1,4 +1,4 @@
-// src/models/api/savedForLaterService.ts
+import { cacheService } from './cacheService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -21,8 +21,15 @@ export interface SavedForLaterEntry {
     saved_at?: string; // Mantenemos para posible uso futuro, aunque no venga de backend
 }
 
+const CACHE_KEYS = {
+    SAVED_FOR_LATER: 'saved_for_later',
+};
+
 class SavedForLaterService {
     async getSaved(): Promise<SavedForLaterEntry[]> {
+        const cached = cacheService.get<SavedForLaterEntry[]>(CACHE_KEYS.SAVED_FOR_LATER);
+        if (cached) return cached;
+
         const response = await fetch(`${API_URL}/mas-tarde`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -38,7 +45,7 @@ class SavedForLaterService {
 
         // Mapear la respuesta del backend (que tiene { id, restaurant: {...} }) 
         // al formato que espera la vista
-        return data.map((item: any) => ({
+        const mapped = data.map((item: any) => ({
             id: String(item.id),
             name: item.restaurant.name,
             rating: item.restaurant.rating,
@@ -54,6 +61,9 @@ class SavedForLaterService {
             phone_number: item.restaurant.phone_number,
             place_id: item.place_id,
         }));
+
+        cacheService.set(CACHE_KEYS.SAVED_FOR_LATER, mapped);
+        return mapped;
     }
 
     async saveForLater(restaurantData: { place_id: string;[key: string]: any }): Promise<{ entry: SavedForLaterEntry, already_saved: boolean }> {
@@ -70,6 +80,8 @@ class SavedForLaterService {
         }
 
         const item = await response.json();
+
+        cacheService.invalidate(CACHE_KEYS.SAVED_FOR_LATER);
 
         // Mapeamos lo develto al formato de la vista
         return {
@@ -104,7 +116,10 @@ class SavedForLaterService {
             const data = await response.json().catch(() => ({}));
             throw new Error(data.detail || 'Error al eliminar de guardados');
         }
+
+        cacheService.invalidate(CACHE_KEYS.SAVED_FOR_LATER);
     }
 }
 
 export const savedForLaterService = new SavedForLaterService();
+

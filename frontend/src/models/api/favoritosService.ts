@@ -1,3 +1,5 @@
+import { cacheService } from './cacheService';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export interface FavoritosList {
@@ -14,8 +16,16 @@ export interface FavoritoItem {
     restaurant: any;
 }
 
+const CACHE_KEYS = {
+    LISTAS: 'fav_listas',
+    LISTA_DETALLE: (id: number) => `fav_lista_${id}`,
+};
+
 export const favoritosService = {
     getListas: async (): Promise<FavoritosList[]> => {
+        const cached = cacheService.get<FavoritosList[]>(CACHE_KEYS.LISTAS);
+        if (cached) return cached;
+
         const response = await fetch(`${API_URL}/favoritos/listas`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -25,7 +35,9 @@ export const favoritosService = {
             const data = await response.json();
             throw new Error(data.detail || 'Error al obtener las listas de favoritos');
         }
-        return await response.json();
+        const data = await response.json();
+        cacheService.set(CACHE_KEYS.LISTAS, data);
+        return data;
     },
 
     crearLista: async (nombre: string, icono: string = 'Heart'): Promise<FavoritosList> => {
@@ -39,7 +51,9 @@ export const favoritosService = {
             const data = await response.json();
             throw new Error(data.detail || 'Error al crear la lista');
         }
-        return await response.json();
+        const data = await response.json();
+        cacheService.invalidate(CACHE_KEYS.LISTAS);
+        return data;
     },
 
     updateLista: async (listaId: number, nombre: string): Promise<FavoritosList> => {
@@ -53,7 +67,10 @@ export const favoritosService = {
             const data = await response.json();
             throw new Error(data.detail || 'Error al actualizar la lista');
         }
-        return await response.json();
+        const data = await response.json();
+        cacheService.invalidate(CACHE_KEYS.LISTAS);
+        cacheService.invalidate(CACHE_KEYS.LISTA_DETALLE(listaId));
+        return data;
     },
 
     deleteLista: async (listaId: number): Promise<void> => {
@@ -66,9 +83,15 @@ export const favoritosService = {
             const data = await response.json().catch(() => ({}));
             throw new Error(data.detail || 'Error al eliminar la lista de favoritos');
         }
+        cacheService.invalidate(CACHE_KEYS.LISTAS);
+        cacheService.invalidate(CACHE_KEYS.LISTA_DETALLE(listaId));
     },
 
     getListaDetalle: async (listaId: number): Promise<{ lista: FavoritosList; restaurantes: FavoritoItem[] }> => {
+        const cacheKey = CACHE_KEYS.LISTA_DETALLE(listaId);
+        const cached = cacheService.get<{ lista: FavoritosList; restaurantes: FavoritoItem[] }>(cacheKey);
+        if (cached) return cached;
+
         const response = await fetch(`${API_URL}/favoritos/listas/${listaId}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -78,7 +101,9 @@ export const favoritosService = {
             const data = await response.json();
             throw new Error(data.detail || 'Error al obtener los favoritos de la lista');
         }
-        return await response.json();
+        const data = await response.json();
+        cacheService.set(cacheKey, data);
+        return data;
     },
 
     addFavorito: async (listaId: number, placeId: string): Promise<FavoritoItem> => {
@@ -92,7 +117,9 @@ export const favoritosService = {
             const data = await response.json();
             throw new Error(data.detail || 'Error al añadir a favoritos');
         }
-        return await response.json();
+        const data = await response.json();
+        cacheService.invalidate(CACHE_KEYS.LISTA_DETALLE(listaId));
+        return data;
     },
 
     deleteFavorito: async (favoritoId: number): Promise<void> => {
@@ -105,5 +132,10 @@ export const favoritosService = {
             const data = await response.json().catch(() => ({}));
             throw new Error(data.detail || 'Error al eliminar de favoritos');
         }
+        // Invalidate all list details because we don't know which list this favorite belonged to
+        // based on the ID alone here (unless we pass it or the API returns it)
+        // Alternatively, we can use invalidatePattern
+        cacheService.invalidatePattern('fav_lista_');
     },
 };
+

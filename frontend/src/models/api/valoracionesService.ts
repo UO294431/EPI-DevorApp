@@ -1,3 +1,5 @@
+import { cacheService } from './cacheService';
+
 export interface ValoracionCreate {
     place_id: string;
     calidad: number;
@@ -26,6 +28,7 @@ export interface ValoracionPublica {
     ha_dado_me_gusta: boolean;
     fecha: string;
 }
+
 export interface ValoracionDetailedResponse {
     id: number;
     place_id: string;
@@ -39,6 +42,12 @@ export interface ValoracionDetailedResponse {
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+const CACHE_KEYS = {
+    MIS_VALORACIONES: 'mis_valoraciones',
+    MI_VALORACION: (placeId: string) => `mi_valoracion_${placeId}`,
+    RESENAS_RESTAURANTE: (placeId: string) => `resenas_restaurante_${placeId}`,
+};
 
 export const valoracionesService = {
     valorarRestaurante: async (data: ValoracionCreate): Promise<ValoracionResponse> => {
@@ -54,10 +63,18 @@ export const valoracionesService = {
             throw new Error(error.detail || 'Error al guardar la valoración');
         }
 
-        return await response.json();
+        const result = await response.json();
+        cacheService.invalidate(CACHE_KEYS.MIS_VALORACIONES);
+        cacheService.invalidate(CACHE_KEYS.MI_VALORACION(data.place_id));
+        cacheService.invalidate(CACHE_KEYS.RESENAS_RESTAURANTE(data.place_id));
+        return result;
     },
 
     obtenerMiValoracion: async (place_id: string): Promise<ValoracionResponse | null> => {
+        const cacheKey = CACHE_KEYS.MI_VALORACION(place_id);
+        const cached = cacheService.get<ValoracionResponse>(cacheKey);
+        if (cached) return cached;
+
         const response = await fetch(`${API_URL}/valoraciones/${place_id}`, {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -72,10 +89,14 @@ export const valoracionesService = {
             return null;
         }
 
+        cacheService.set(cacheKey, data);
         return data;
     },
 
     obtenerTodasMisValoraciones: async (): Promise<ValoracionDetailedResponse[]> => {
+        const cached = cacheService.get<ValoracionDetailedResponse[]>(CACHE_KEYS.MIS_VALORACIONES);
+        if (cached) return cached;
+
         const response = await fetch(`${API_URL}/valoraciones`, {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -85,7 +106,9 @@ export const valoracionesService = {
             throw new Error('Error al obtener el historial de valoraciones');
         }
 
-        return await response.json();
+        const data = await response.json();
+        cacheService.set(CACHE_KEYS.MIS_VALORACIONES, data);
+        return data;
     },
 
     eliminarValoracion: async (place_id: string): Promise<void> => {
@@ -99,9 +122,17 @@ export const valoracionesService = {
             const error = await response.json();
             throw new Error(error.detail || 'Error al eliminar la valoración');
         }
+
+        cacheService.invalidate(CACHE_KEYS.MIS_VALORACIONES);
+        cacheService.invalidate(CACHE_KEYS.MI_VALORACION(place_id));
+        cacheService.invalidate(CACHE_KEYS.RESENAS_RESTAURANTE(place_id));
     },
 
     obtenerResenasRestaurante: async (place_id: string): Promise<ValoracionPublica[]> => {
+        const cacheKey = CACHE_KEYS.RESENAS_RESTAURANTE(place_id);
+        const cached = cacheService.get<ValoracionPublica[]>(cacheKey);
+        if (cached) return cached;
+
         const response = await fetch(`${API_URL}/valoraciones/restaurante/${place_id}`, {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -111,7 +142,9 @@ export const valoracionesService = {
             throw new Error('Error al obtener las reseñas del restaurante');
         }
 
-        return await response.json();
+        const data = await response.json();
+        cacheService.set(cacheKey, data);
+        return data;
     },
 
     darMeGusta: async (valoracion_id: number): Promise<ValoracionPublica> => {
@@ -126,7 +159,12 @@ export const valoracionesService = {
             throw new Error(error.detail || 'Error al dar me gusta');
         }
 
-        return await response.json();
+        const result = await response.json();
+        // Since we don't know the place_id from the valoracion_id here without more context,
+        // we invalidate all restaurant reviews.
+        cacheService.invalidatePattern('resenas_restaurante_');
+        return result;
     },
 };
+
 

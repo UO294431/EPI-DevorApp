@@ -60,7 +60,7 @@ const RestaurantRecommendationPage: React.FC = () => {
     const [customLocation, setCustomLocation] = useState('');
 
     // Sort
-    const [sortBy, setSortBy] = useState<'rating' | 'distance'>('rating');
+    const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'recommended' | 'reviews'>('recommended');
 
     // Results logic
     const [loading, setLoading] = useState(false);
@@ -599,122 +599,122 @@ const RestaurantRecommendationPage: React.FC = () => {
                     <RestaurantDetailView
                         restaurant={selectedEntryForDetail}
                         backText="Resultados"
-                onBack={() => setSelectedEntryForDetail(null)}
-                actions={
-                    <>
-                        <div className="detail-actions-column">
-                            <button
-                                onClick={async (e) => {
-                                    try {
-                                        await historialService.addToHistorial(selectedEntryForDetail.id);
-                                        showNotification(`Has seleccionado ${selectedEntryForDetail.name}`, 'success');
-                                        navigate('/home');
-                                    } catch (err: any) {
-                                        console.error("Error saving to history:", err);
-                                        showNotification("Error al guardar en el historial: " + err.message, 'error');
+                        onBack={() => setSelectedEntryForDetail(null)}
+                        actions={
+                            <>
+                                <div className="detail-actions-column">
+                                    <button
+                                        onClick={async (e) => {
+                                            try {
+                                                await historialService.addToHistorial(selectedEntryForDetail.id);
+                                                showNotification(`Has seleccionado ${selectedEntryForDetail.name}`, 'success');
+                                                navigate('/home');
+                                            } catch (err: any) {
+                                                console.error("Error saving to history:", err);
+                                                showNotification("Error al guardar en el historial: " + err.message, 'error');
+                                            }
+                                        }}
+                                        className="btn-detail-main"
+                                    >
+                                        SELECCIONAR ESTE RESTAURANTE
+                                    </button>
+                                    <button
+                                        onClick={async (e) => {
+                                            try {
+                                                const response = await savedForLaterService.saveForLater({
+                                                    place_id: selectedEntryForDetail.id,
+                                                    name: selectedEntryForDetail.name,
+                                                    rating: selectedEntryForDetail.rating || 0,
+                                                    user_ratings_total: selectedEntryForDetail.user_ratings_total || 0,
+                                                    types: selectedEntryForDetail.types || [],
+                                                    address: selectedEntryForDetail.address || '',
+                                                    main_photo: selectedEntryForDetail.main_photo,
+                                                    summary: selectedEntryForDetail.summary,
+                                                    opening_hours: selectedEntryForDetail.opening_hours,
+                                                    google_maps_uri: selectedEntryForDetail.google_maps_uri,
+                                                    website_uri: selectedEntryForDetail.website_uri,
+                                                });
+                                                if (response.already_saved) {
+                                                    showNotification(`Ya tienes guardado ${selectedEntryForDetail.name} para más tarde.`, 'warning');
+                                                } else {
+                                                    showNotification(`Has guardado ${selectedEntryForDetail.name} para más tarde`, 'success');
+                                                }
+                                            } catch (err: any) {
+                                                console.error("Error saving for later:", err);
+                                                showNotification(err.message || "Error al guardar para más tarde.", 'error');
+                                            }
+                                        }}
+                                        type="button"
+                                        className="btn-detail-outline"
+                                    >
+                                        <Bookmark size={16} /> Guardar para más tarde
+                                    </button>
+                                </div>
+
+                                {/* ── Sección de reseñas ── */}
+                                {(() => {
+                                    const currResenas = resenasPorRestaurante[selectedEntryForDetail.id] || [];
+                                    const avg = { calidad: 0, precio: 0, higiene: 0, trato: 0 };
+                                    if (currResenas.length > 0) {
+                                        avg.calidad = currResenas.reduce((s: number, r: any) => s + r.calidad, 0) / currResenas.length;
+                                        avg.precio = currResenas.reduce((s: number, r: any) => s + r.precio, 0) / currResenas.length;
+                                        avg.higiene = currResenas.reduce((s: number, r: any) => s + r.higiene, 0) / currResenas.length;
+                                        avg.trato = currResenas.reduce((s: number, r: any) => s + r.trato, 0) / currResenas.length;
                                     }
-                                }}
-                                className="btn-detail-main"
-                            >
-                                SELECCIONAR ESTE RESTAURANTE
-                            </button>
-                            <button
-                                onClick={async (e) => {
-                                    try {
-                                        const response = await savedForLaterService.saveForLater({
-                                            place_id: selectedEntryForDetail.id,
-                                            name: selectedEntryForDetail.name,
-                                            rating: selectedEntryForDetail.rating || 0,
-                                            user_ratings_total: selectedEntryForDetail.user_ratings_total || 0,
-                                            types: selectedEntryForDetail.types || [],
-                                            address: selectedEntryForDetail.address || '',
-                                            main_photo: selectedEntryForDetail.main_photo,
-                                            summary: selectedEntryForDetail.summary,
-                                            opening_hours: selectedEntryForDetail.opening_hours,
-                                            google_maps_uri: selectedEntryForDetail.google_maps_uri,
-                                            website_uri: selectedEntryForDetail.website_uri,
-                                        });
-                                        if (response.already_saved) {
-                                            showNotification(`Ya tienes guardado ${selectedEntryForDetail.name} para más tarde.`, 'warning');
-                                        } else {
-                                            showNotification(`Has guardado ${selectedEntryForDetail.name} para más tarde`, 'success');
-                                        }
-                                    } catch (err: any) {
-                                        console.error("Error saving for later:", err);
-                                        showNotification(err.message || "Error al guardar para más tarde.", 'error');
-                                    }
-                                }}
-                                type="button"
-                                className="btn-detail-outline"
-                            >
-                                <Bookmark size={16} /> Guardar para más tarde
-                            </button>
-                        </div>
 
-                        {/* ── Sección de reseñas ── */}
-                        {(() => {
-                            const currResenas = resenasPorRestaurante[selectedEntryForDetail.id] || [];
-                            const avg = { calidad: 0, precio: 0, higiene: 0, trato: 0 };
-                            if (currResenas.length > 0) {
-                                avg.calidad = currResenas.reduce((s: number, r: any) => s + r.calidad, 0) / currResenas.length;
-                                avg.precio = currResenas.reduce((s: number, r: any) => s + r.precio, 0) / currResenas.length;
-                                avg.higiene = currResenas.reduce((s: number, r: any) => s + r.higiene, 0) / currResenas.length;
-                                avg.trato = currResenas.reduce((s: number, r: any) => s + r.trato, 0) / currResenas.length;
-                            }
+                                    const formatDateStr = (dateString?: string) => {
+                                        if (!dateString) return '';
+                                        const d = new Date(dateString);
+                                        const now = new Date();
+                                        const diffMs = now.getTime() - d.getTime();
+                                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                        if (diffDays === 0) return 'hoy';
+                                        if (diffDays === 1) return 'hace 1 día';
+                                        if (diffDays < 7) return `hace ${diffDays} días`;
+                                        if (diffDays < 30) return `hace ${Math.floor(diffDays / 7)} semanas`;
+                                        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                                    };
 
-                            const formatDateStr = (dateString?: string) => {
-                                if (!dateString) return '';
-                                const d = new Date(dateString);
-                                const now = new Date();
-                                const diffMs = now.getTime() - d.getTime();
-                                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                                if (diffDays === 0) return 'hoy';
-                                if (diffDays === 1) return 'hace 1 día';
-                                if (diffDays < 7) return `hace ${diffDays} días`;
-                                if (diffDays < 30) return `hace ${Math.floor(diffDays / 7)} semanas`;
-                                return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-                            };
+                                    return (
+                                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                                                <span style={{ fontSize: '1.2rem', color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                                </span>
+                                                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)' }}>Reseñas de la comunidad</span>
+                                                {currResenas.length > 0 && (
+                                                    <span style={{
+                                                        background: 'rgba(255,255,255,0.1)',
+                                                        color: 'var(--muted)',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 600,
+                                                        padding: '0.15rem 0.6rem',
+                                                        borderRadius: '12px',
+                                                        border: '1px solid var(--border)',
+                                                    }}>
+                                                        {currResenas.length}
+                                                    </span>
+                                                )}
+                                            </div>
 
-                            return (
-                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
-                                        <span style={{ fontSize: '1.2rem', color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                                        </span>
-                                        <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)' }}>Reseñas de la comunidad</span>
-                                        {currResenas.length > 0 && (
-                                            <span style={{
-                                                background: 'rgba(255,255,255,0.1)',
-                                                color: 'var(--muted)',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 600,
-                                                padding: '0.15rem 0.6rem',
-                                                borderRadius: '12px',
-                                                border: '1px solid var(--border)',
-                                            }}>
-                                                {currResenas.length}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {loadingResenas[selectedEntryForDetail.id] ? (
-                                        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
-                                            Cargando reseñas...
-                                        </div>
-                                    ) : currResenas.length === 0 ? (
-                                        <div style={{
-                                            textAlign: 'center', padding: '1.5rem',
-                                            color: 'var(--muted)', fontSize: '0.875rem',
-                                            background: 'var(--surface-2)',
-                                            borderRadius: 'var(--radius-sm)',
-                                            border: '1px dashed var(--border)'
-                                        }}>
-                                            😶 Aún no hay reseñas para este restaurante.
-                                        </div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                            {/* Averages */}
-                                            <div style={{
+                                            {loadingResenas[selectedEntryForDetail.id] ? (
+                                                <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
+                                                    Cargando reseñas...
+                                                </div>
+                                            ) : currResenas.length === 0 ? (
+                                                <div style={{
+                                                    textAlign: 'center', padding: '1.5rem',
+                                                    color: 'var(--muted)', fontSize: '0.875rem',
+                                                    background: 'var(--surface-2)',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    border: '1px dashed var(--border)'
+                                                }}>
+                                                    😶 Aún no hay reseñas para este restaurante.
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                    {/* Averages */}
+                                                    <div style={{
                                                         background: 'var(--surface-2)',
                                                         borderRadius: '12px',
                                                         padding: '1.5rem',
@@ -741,112 +741,112 @@ const RestaurantRecommendationPage: React.FC = () => {
                                                         ))}
                                                     </div>
 
-                                            {/* List of Reviews */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                                {currResenas.map(resena => (
-                                                    <div key={resena.id} style={{
-                                                        background: 'var(--surface-2)',
-                                                        borderRadius: '12px',
-                                                        padding: '1.25rem',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        gap: '1rem',
-                                                        border: '1px solid transparent',
-                                                    }}>
-                                                        {/* Avatar + Name + Date */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                            <div style={{
-                                                                width: '36px', height: '36px',
-                                                                borderRadius: '50%',
-                                                                background: 'var(--surface-3)',
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)'
+                                                    {/* List of Reviews */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {currResenas.map(resena => (
+                                                            <div key={resena.id} style={{
+                                                                background: 'var(--surface-2)',
+                                                                borderRadius: '12px',
+                                                                padding: '1.25rem',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '1rem',
+                                                                border: '1px solid transparent',
                                                             }}>
-                                                                {resena.username.charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
-                                                                    {resena.username}
-                                                                </span>
-                                                                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                                                                    {formatDateStr(resena.fecha)}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* 4 Scores Inline */}
-                                                        <div style={{
-                                                            display: 'grid',
-                                                            gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-                                                            gap: '0.6rem 1rem'
-                                                        }}>
-                                                            {[
-                                                                { label: 'Calidad', val: resena.calidad },
-                                                                { label: 'Precio', val: resena.precio },
-                                                                { label: 'Higiene', val: resena.higiene },
-                                                                { label: 'Trato', val: resena.trato },
-                                                            ].map(({ label, val }) => (
-                                                                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>{label}</span>
-                                                                    <div style={{ display: 'flex', gap: '1px' }}>
-                                                                        {Array.from({ length: 5 }).map((_, i) => (
-                                                                            <span key={i} style={{
-                                                                                fontSize: '0.65rem',
-                                                                                color: i < val ? '#ffb400' : 'var(--muted)',
-                                                                                opacity: i < val ? 1 : 0.3
-                                                                            }}>★</span>
-                                                                        ))}
+                                                                {/* Avatar + Name + Date */}
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                                    <div style={{
+                                                                        width: '36px', height: '36px',
+                                                                        borderRadius: '50%',
+                                                                        background: 'var(--surface-3)',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)'
+                                                                    }}>
+                                                                        {resena.username.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                        <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
+                                                                            {resena.username}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                                                                            {formatDateStr(resena.fecha)}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
-                                                            ))}
-                                                        </div>
 
-                                                        {/* Comment */}
-                                                        {resena.comentario && (
-                                                            <p style={{
-                                                                fontSize: '0.85rem',
-                                                                color: 'var(--text)',
-                                                                lineHeight: '1.4',
-                                                                margin: 0,
-                                                                fontStyle: 'italic',
-                                                                fontWeight: 600
-                                                            }}>
-                                                                &ldquo;{resena.comentario}&rdquo;
-                                                            </p>
-                                                        )}
+                                                                {/* 4 Scores Inline */}
+                                                                <div style={{
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+                                                                    gap: '0.6rem 1rem'
+                                                                }}>
+                                                                    {[
+                                                                        { label: 'Calidad', val: resena.calidad },
+                                                                        { label: 'Precio', val: resena.precio },
+                                                                        { label: 'Higiene', val: resena.higiene },
+                                                                        { label: 'Trato', val: resena.trato },
+                                                                    ].map(({ label, val }) => (
+                                                                        <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                            <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>{label}</span>
+                                                                            <div style={{ display: 'flex', gap: '1px' }}>
+                                                                                {Array.from({ length: 5 }).map((_, i) => (
+                                                                                    <span key={i} style={{
+                                                                                        fontSize: '0.65rem',
+                                                                                        color: i < val ? '#ffb400' : 'var(--muted)',
+                                                                                        opacity: i < val ? 1 : 0.3
+                                                                                    }}>★</span>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
 
-                                                        {/* Like button right aligned */}
-                                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.5rem' }}>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleMeGusta(selectedEntryForDetail.id, resena.id); }}
-                                                                style={{
-                                                                    background: 'transparent',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderRadius: '8px',
-                                                                    padding: '0.25rem 0.5rem',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.4rem',
-                                                                    fontSize: '0.8rem',
-                                                                    color: resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)',
-                                                                    transition: 'all 0.2s',
-                                                                }}
-                                                            >
-                                                                <Heart size={14} fill={resena.ha_dado_me_gusta ? '#f472b6' : 'transparent'} color={resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)'} />
-                                                                <span style={{ fontWeight: 500, fontSize: '0.75rem' }}>{resena.me_gustas}</span>
-                                                            </button>
-                                                        </div>
+                                                                {/* Comment */}
+                                                                {resena.comentario && (
+                                                                    <p style={{
+                                                                        fontSize: '0.85rem',
+                                                                        color: 'var(--text)',
+                                                                        lineHeight: '1.4',
+                                                                        margin: 0,
+                                                                        fontStyle: 'italic',
+                                                                        fontWeight: 600
+                                                                    }}>
+                                                                        &ldquo;{resena.comentario}&rdquo;
+                                                                    </p>
+                                                                )}
+
+                                                                {/* Like button right aligned */}
+                                                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.5rem' }}>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleMeGusta(selectedEntryForDetail.id, resena.id); }}
+                                                                        style={{
+                                                                            background: 'transparent',
+                                                                            border: '1px solid var(--border)',
+                                                                            borderRadius: '8px',
+                                                                            padding: '0.25rem 0.5rem',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.4rem',
+                                                                            fontSize: '0.8rem',
+                                                                            color: resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)',
+                                                                            transition: 'all 0.2s',
+                                                                        }}
+                                                                    >
+                                                                        <Heart size={14} fill={resena.ha_dado_me_gusta ? '#f472b6' : 'transparent'} color={resena.ha_dado_me_gusta ? '#f472b6' : 'var(--muted)'} />
+                                                                        <span style={{ fontWeight: 500, fontSize: '0.75rem' }}>{resena.me_gustas}</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })()}
-                    </>
-                }
+                                    );
+                                })()}
+                            </>
+                        }
                     />
                 )}
 
@@ -1096,7 +1096,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                         aria-label="Ordenar resultados"
                                         value={sortBy}
                                         onChange={(e) => {
-                                            const newSort = e.target.value as 'rating' | 'distance';
+                                            const newSort = e.target.value as any;
                                             setSortBy(newSort);
                                             if (results.length > 0) triggerSearch(newSort);
                                         }}
@@ -1106,6 +1106,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                             backgroundSize: '12px',
                                         }}
                                     >
+                                        <option value="recommended">Recomendado</option>
                                         <option value="rating">Mejor valoración</option>
                                         <option value="distance">Cercanía</option>
                                         <option value="reviews">Más populares</option>
