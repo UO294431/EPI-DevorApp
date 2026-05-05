@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Response, status, Depends
 from typing import Annotated
-from app.models.dtos.auth_dto import LoginRequest, RegisterRequest, PasswordResetRequest
+from app.models.dtos.auth_dto import (
+    LoginRequest, RegisterRequest, PasswordResetRequest,
+    ProfileUpdateRequest, EmailUpdateRequest, PasswordUpdateRequest
+)
 from app.services import auth_service
 from app.core.config import settings
 from app.core.security import get_current_user
@@ -102,4 +105,51 @@ def check_availability(email: str = "", username: str = ""):
         username_taken = get_uid_by_username(username) is not None
 
     return {"email_taken": email_taken, "username_taken": username_taken}
+    
+@router.patch("/profile")
+def update_profile(
+    data: ProfileUpdateRequest,
+    current_user: Annotated[Usuario, Depends(get_current_user)]
+):
+    user = auth_service.update_profile(current_user.uid, current_user.email, data)
+    return {
+        "message": "Perfil actualizado correctamente",
+        "user": {
+            "username": user.username,
+            "email": user.email,
+            "nombre": user.nombre,
+            "apellidos": user.apellidos,
+            "ubicacion": user.ubicacion,
+        },
+    }
+
+@router.patch("/profile/email")
+def update_email(
+    data: EmailUpdateRequest,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    response: Response
+):
+    auth_service.update_email(current_user.uid, current_user.email, data)
+    # Importante: al cambiar el email, invalidamos la sesión para forzar re-login con nuevo email verificado
+    response.delete_cookie(key="access_token")
+    return {"message": "Email actualizado. Por favor, verifica tu nueva bandeja de entrada e inicia sesión."}
+
+@router.patch("/profile/password")
+def update_password(
+    data: PasswordUpdateRequest,
+    current_user: Annotated[Usuario, Depends(get_current_user)]
+):
+    auth_service.update_password(current_user.uid, current_user.email, data)
+    return {"message": "Contraseña actualizada correctamente"}
+
+@router.delete("/profile")
+def delete_account(
+    password: str,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    response: Response
+):
+    auth_service.delete_account(current_user.uid, current_user.email, password, db)
+    response.delete_cookie(key="access_token")
+    return {"message": "Cuenta eliminada permanentemente. Lamentamos verte partir."}
 

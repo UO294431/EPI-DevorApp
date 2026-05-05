@@ -14,3 +14,16 @@ class RegisterRequest(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     email: str
+
+class ProfileUpdateRequest(BaseModel):
+    nombre: str
+    apellidos: str
+    password: str
+
+class EmailUpdateRequest(BaseModel):
+    new_email: str
+    password: str
+
+class PasswordUpdateRequest(BaseModel):
+    new_password: str
+    old_password: str

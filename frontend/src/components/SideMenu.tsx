@@ -10,11 +10,19 @@ import { useLogout } from '../controllers/hooks/useLogout';
 
 const SideMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(() => {
+    const cached = localStorage.getItem('devorapp_user_cache');
+    try {
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   
   const navigate = useNavigate();
   const location = useLocation();
   const { submitLogout } = useLogout(() => {
+    localStorage.removeItem('devorapp_user_cache');
     setIsOpen(false);
     navigate('/login');
   });
@@ -47,10 +55,23 @@ const SideMenu: React.FC = () => {
   }, [fontSize]);
 
   useEffect(() => {
-    if (isOpen && !user) {
-      authService.getMe().then(setUser).catch(() => {});
-    }
-  }, [isOpen, user]);
+    // Carga inicial ansiosa para actualizar cache y estado
+    authService.getMe().then(data => {
+      setUser(data);
+      localStorage.setItem('devorapp_user_cache', JSON.stringify(data));
+    }).catch(() => {
+      // Si falla (ej. sesión expirada), limpiamos caché
+      localStorage.removeItem('devorapp_user_cache');
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleUserUpdate = (e: any) => {
+      setUser(e.detail);
+    };
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
+  }, []);
 
   const closeMenu = () => setIsOpen(false);
 
@@ -77,7 +98,7 @@ const SideMenu: React.FC = () => {
          </div>
 
          {user && (
-           <div className="sidemenu-user">
+           <div className="sidemenu-user" onClick={() => goTo('/profile')} style={{ cursor: 'pointer' }}>
              <div className="sidemenu-avatar">
                {getInitials(user.nombre, user.username)}
              </div>

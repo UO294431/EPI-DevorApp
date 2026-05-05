@@ -212,3 +212,33 @@ def create_usuario(
         apellidos=apellidos,
         ubicacion=ubicacion,
     )
+
+def update_usuario_profile(uid: str, nombre: str, apellidos: str) -> None:
+    """Actualiza el nombre y apellidos en Firestore."""
+    get_firebase_app()
+    db = get_firestore_client()
+    db.collection("usuarios").document(uid).update({
+        "nombre": nombre,
+        "apellidos": apellidos,
+    })
+
+def update_usuario_email(uid: str, new_email: str) -> None:
+    """Actualiza el email en Firebase Auth y desmarca como verificado."""
+    get_firebase_app()
+    fb_auth.update_user(uid, email=new_email, email_verified=False)
+
+def update_usuario_password(uid: str, new_password: str) -> None:
+    """Actualiza la contraseña en Firebase Auth."""
+    get_firebase_app()
+    fb_auth.update_user(uid, password=new_password)
+
+def delete_usuario_profile(uid: str) -> None:
+    """Elimina el perfil del usuario en Firestore."""
+    get_firebase_app()
+    db = get_firestore_client()
+    db.collection("usuarios").document(uid).delete()
+
+def delete_usuario_auth(uid: str) -> None:
+    """Elimina al usuario de Firebase Authentication."""
+    get_firebase_app()
+    fb_auth.delete_user(uid)

@@ -7,6 +7,7 @@ import HistoryPage from './views/HistoryPage';
 import FavoritesPage from './views/FavoritesPage';
 import SavedForLaterPage from './views/SavedForLaterPage';
 import ValoracionesPage from './views/ValoracionesPage';
+import ProfilePage from './views/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { NotificationProvider } from './components/NotificationSystem';
 import './App.css';
@@ -46,6 +47,11 @@ function App() {
           <Route path="/mis-valoraciones" element={
             <ProtectedRoute>
               <ValoracionesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/login" replace />} />

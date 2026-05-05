@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { valoracionesService } from '../models/api/valoracionesService';
+import { cacheService } from '../models/api/cacheService';
 
 const mockValoracion = {
     id: 1, user_id: 'uid1', place_id: 'place1',
@@ -26,6 +27,7 @@ describe('valoracionesService', () => {
     afterEach(() => {
         globalThis.fetch = originalFetch;
         vi.clearAllMocks();
+        cacheService.clear();
     });
 
     // ── valorarRestaurante ──────────────────────────────────────────────────

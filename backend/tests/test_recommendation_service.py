@@ -114,16 +114,16 @@ async def test_google_api_error(mock_post, service, base_request):
     mock_post.return_value = mock_response
 
     result = await service.search_restaurants(base_request)
-    assert result == []
+    assert result == {"results": [], "next_page_token": None}
 
 @pytest.mark.asyncio
 @patch("httpx.AsyncClient.post")
-@patch.object(RecommendationService, "_geocode_location")
+@patch("app.services.recommendation_service.google_places_client.geocode")
 async def test_distance_sorting(mock_geocode, mock_post, service, base_request):
     base_request.sort_by = "distance"
     
     # Mock geocode result (lat, lng of "Madrid" center)
-    mock_geocode.return_value = (40.4168, -3.7038)
+    mock_geocode.return_value = {"lat": 40.4168, "lng": -3.7038}
     
     # Mock restaurant response with locations
     # A is at (40.4168, -3.7038) -> distance = 0
@@ -238,7 +238,7 @@ async def test_search_restaurants_tags_json(mock_post, service, base_request):
             {
                 "id": "Invalid",
                 "displayName": {"text": "Tienda Rara"},
-                "types": ["alien_store", "point_of_interest"]
+                "types": ["store", "point_of_interest"]
             }
         ]
     }

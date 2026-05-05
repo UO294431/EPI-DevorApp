@@ -94,4 +94,62 @@ export const authService = {
         }
         return response.json();
     },
+
+    updateProfile: async (data: any): Promise<any> => {
+        const response = await fetch(`${API_URL}/profile`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.detail || 'Error al actualizar el perfil');
+        }
+        return result;
+    },
+
+    updateEmail: async (data: any): Promise<any> => {
+        const response = await fetch(`${API_URL}/profile/email`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.detail || 'Error al actualizar el email');
+        }
+        return result;
+    },
+
+    updatePassword: async (data: any): Promise<any> => {
+        const response = await fetch(`${API_URL}/profile/password`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.detail || 'Error al actualizar la contraseña');
+        }
+        return result;
+    },
+
+    deleteAccount: async (password: string): Promise<any> => {
+        const response = await fetch(`${API_URL}/profile?password=${encodeURIComponent(password)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.detail || 'Error al eliminar la cuenta');
+        }
+        return result;
+    },
 };
