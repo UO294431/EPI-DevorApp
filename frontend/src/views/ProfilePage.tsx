@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Mail, Lock, ChevronLeft, Camera, Edit3, 
-  Check, X, ShieldCheck, Eye, EyeOff, AlertCircle
+  User, Mail, Lock, ChevronLeft, Camera, Edit3,
+  ShieldCheck, Eye, EyeOff, AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';

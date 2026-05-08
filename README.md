@@ -1,123 +1,190 @@
 # EPI-DevorApp
 
-## Demo project
+A restaurant discovery and recommendation app with a React web frontend, FastAPI backend, and Keras-powered recommendation engine. The frontend is also distributed as an Android APK via Google Play.
 
-### Description
-The demo project is composed by two components: 
-- The backend component that uses the Oak and Deno to create a login endpoint   `api/login`, which can be accesed from the frontend. The backend has unitary and integration test cases(available into the test folder) and is available in the URL: [http://localhost:8080](http://localhost:8080)
-- The frontend component that uses Oak to serve a simple and minimal page, that uses the endpoint made available in the backend. The frontend is available in the following URL:  [http://localhost:5173](http://localhost:5173)
+---
 
-The repository has configured a Continuous Integration (CI) pipeline that builds, executes the test cases and a static analysis tool to detect problems/bugs. 
+## Architecture
 
-### How to deploy
+```
+epi-devorapp/
+├── frontend/      # React 19 + TypeScript + Vite (web + Android via Capacitor)
+├── backend/       # Python FastAPI REST API + PostgreSQL
+├── keras-api/     # Neural network recommendation engine
+└── docker-compose.yml
+```
 
-The easiest way to deploy the project in local is using Docker. In the repository root, there's a docker compose file (`docker-compose.yml`) that allows the deployment with a single command
+| Layer | Technology |
+|---|---|
+| Web frontend | React 19, TypeScript, Vite 7 |
+| Android packaging | Capacitor 7 |
+| Backend API | FastAPI 0.129, Python 3.12 |
+| Database | PostgreSQL + SQLAlchemy + Alembic |
+| ML engine | Keras (restaurant recommendations) |
+| Auth | Firebase + JWT |
+| CI/CD | GitLab CI |
+| Android delivery | Google Play (internal → production) |
+
+---
+
+## Local development
+
+### Prerequisites
+
+- Docker + Docker Compose (recommended)
+- Or: Node 22, Python 3.12, Poetry
+
+### With Docker (recommended)
 
 ```bash
 docker compose up --build
 ```
 
-The project also can be deployed using Deno, place yourself in the root folder and execute:
+- Frontend: http://localhost:5173  
+- Backend API: http://localhost:8080
+
+### Without Docker
+
+**Backend:**
 
 ```bash
 cd backend
-deno run --allow-net --allow-read 
+poetry install
+poetry run uvicorn app.main:app --reload --port 8000
 ```
 
-and into another terminal:
+**Frontend:**
 
 ```bash
 cd frontend
-deno run --allow-net --allow-env --allow-read main.ts 
+npm install
+npm run dev
 ```
 
+---
 
-## Getting started
+## Running tests
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+```bash
+# Backend
+cd backend && poetry run pytest tests/ -v
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+# Frontend (unit tests with Vitest)
+cd frontend && npm run test
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/HP-SCDS/Observatorio/2025-2026/devorapp/epi-devorapp.git
-git branch -M main
-git push -uf origin main
+# Frontend lint
+cd frontend && npm run lint
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](https://gitlab.com/HP-SCDS/Observatorio/2025-2026/devorapp/epi-devorapp/-/settings/integrations)
+## CI/CD pipeline
 
-## Collaborate with your team
+The GitLab CI pipeline (`.gitlab-ci.yml`) runs on every push to `main`, on merge requests, and on tags.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+| Stage | Jobs | Trigger |
+|---|---|---|
+| `test` | `test_backend`, `lint_frontend`, `test_frontend` | main, MR, tags |
+| `build` | `build_backend`, `build_frontend` (Docker images) | main, tags |
+| `android` | `build_apk` (signed release APK) | main, tags |
+| `deploy` | `deploy_play_store` (internal track) | tags only |
 
-## Test and Deploy
+The `build_apk` job starts as soon as the frontend tests pass — it does not block on the Docker image builds.
 
-Use the built-in continuous integration in GitLab.
+A Play Store release is triggered by pushing a Git tag:
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
 
-***
+---
 
-# Editing this README
+## Android build
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### One-time local setup
 
-## Suggestions for a good README
+The `android/` folder must be generated once locally and committed to the repo:
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```bash
+cd frontend
+npm install
+npx cap add android     # generates frontend/android/
+npx cap sync android    # copies dist/ into the android project
+```
 
-## Name
-Choose a self-explaining name for your project.
+Open the project in Android Studio to adjust icons, splash screen, and `minSdk`:
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```bash
+npm run cap:open
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### Local APK build (debug)
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+```bash
+cd frontend
+npm run cap:build       # runs `npm run build && cap sync android`
+cd android
+./gradlew assembleDebug
+# APK at: android/app/build/outputs/apk/debug/app-debug.apk
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Local APK build (release, signed)
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```bash
+cd frontend/android
+./gradlew assembleRelease \
+  -Pandroid.injected.signing.store.file=/path/to/keystore.jks \
+  -Pandroid.injected.signing.store.password=<store-password> \
+  -Pandroid.injected.signing.key.alias=<key-alias> \
+  -Pandroid.injected.signing.key.password=<key-password>
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+---
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Play Store deployment
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Required GitLab CI variables
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Go to **Settings → CI/CD → Variables** in your GitLab project and add:
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+| Variable | Type | Description |
+|---|---|---|
+| `KEYSTORE_FILE` | Variable (masked) | Base64-encoded `.jks` keystore file |
+| `KEYSTORE_STORE_PASSWORD` | Variable (masked) | Keystore password |
+| `KEYSTORE_KEY_ALIAS` | Variable | Key alias inside the keystore |
+| `KEYSTORE_KEY_PASSWORD` | Variable (masked) | Key password |
+| `GOOGLE_PLAY_JSON_KEY` | File | Google Play service account JSON |
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### Encode the keystore for CI
+
+```bash
+base64 -w 0 keystore.jks
+# paste the output as the KEYSTORE_FILE variable value
+```
+
+### Create a Google Play service account
+
+1. Open [Google Play Console](https://play.google.com/console) → Setup → API access
+2. Link to a Google Cloud project and create a service account with **Release manager** role
+3. Download the JSON key and set it as the `GOOGLE_PLAY_JSON_KEY` file variable
+
+### Promotion to production
+
+After CI deploys to the **internal track**, promote the release to production manually via the Play Console or change `track:` in `frontend/fastlane/Fastfile` to `'production'`.
+
+---
+
+## Environment variables (backend)
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `FIREBASE_CREDENTIALS` | Path to Firebase service account JSON |
+| `SECRET_KEY` | JWT signing secret |
+
+---
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT

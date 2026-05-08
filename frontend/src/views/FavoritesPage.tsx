@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Heart, Clock, Star, Bookmark, Coffee, Pizza, UtensilsCrossed, Wine,
     Sandwich, Flame, MapPin, Trophy, Smile, ThumbsUp, Gift, Cake,
-    ShoppingBag, Moon, Sun, Zap, Plus, MoreVertical, X, Map, Globe,
-    ChevronRight, ChevronLeft, Search
+    ShoppingBag, Moon, Sun, Zap, Plus, MoreVertical, X, Map,
+    ChevronLeft, Search
 } from 'lucide-react';
 import { favoritosService } from '../models/api/favoritosService';
 import type { FavoritosList, FavoritoItem } from '../models/api/favoritosService';
@@ -365,19 +365,6 @@ const FavoritesPage: React.FC = () => {
         };
         fetchLists();
     }, []);
-
-    const handleListClick = (list: FavoritosList) => {
-        setSearchParams({ list: list.id.toString() });
-        setSearchTerm('');
-    };
-
-    const goBack = () => {
-        if (searchParams.get('detail')) {
-            navigate(-1);
-        } else if (searchParams.get('list')) {
-            navigate(-1);
-        }
-    };
 
     const handleCreate = async (nombre: string, icono: string) => {
         const nueva = await favoritosService.crearLista(nombre, icono);

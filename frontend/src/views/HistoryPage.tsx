@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Clock, Search, Star, UtensilsCrossed, X, MoreVertical,
     Filter, ChevronDown, ChevronRight, Heart, MessageSquare,
-    Trash2, Edit3, Map, FolderHeart, Plus, Bookmark, Coffee,
+    Trash2, Map, Plus, Bookmark, Coffee,
     Pizza, Wine, Sandwich, Flame, MapPin, Trophy, Smile,
-    ThumbsUp, Gift, Cake, ShoppingBag, Moon, Sun, Zap, Globe, 
+    ThumbsUp, Gift, Cake, ShoppingBag, Moon, Sun, Zap,
     HelpCircle, DollarSign, Home, User, ChevronLeft
 } from 'lucide-react';
 import { historialService } from '../models/api/historialService';
@@ -139,7 +139,7 @@ const HistoryPage: React.FC = () => {
     const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
     const [ratedPlaceIds, setRatedPlaceIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [_error, setError] = useState<string | null>(null);
     const { showNotification, showConfirm } = useNotification();
 
     // Filter and Detail state

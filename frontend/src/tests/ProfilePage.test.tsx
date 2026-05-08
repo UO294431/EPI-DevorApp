@@ -100,7 +100,7 @@ describe('ProfilePage', () => {
 
         // Verificamos que se abrió el formulario
         const nameInput = screen.getByDisplayValue('Ana');
-        const lastnameInput = screen.getByDisplayValue('García');
+        screen.getByDisplayValue('García');
         const passwordInput = screen.getByPlaceholderText('Introduce tu contraseña');
 
         // Modificamos datos

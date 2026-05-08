@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
-    MessageSquare, Star, Trash2, Edit3, ChevronDown, ChevronRight, 
-    UtensilsCrossed, ArrowLeft, X, HelpCircle, Heart, DollarSign, Home, User, ChevronLeft
+    MessageSquare, Star, Trash2, Edit3, ChevronDown, ChevronRight,
+    UtensilsCrossed, HelpCircle, Heart, DollarSign, Home, User, ChevronLeft
 } from 'lucide-react';
 import { valoracionesService } from '../models/api/valoracionesService';
 import type { ValoracionDetailedResponse } from '../models/api/valoracionesService';
@@ -10,8 +9,7 @@ import TopBar from '../components/TopBar';
 import { useNotification } from '../components/NotificationSystem';
 
 const ValoracionesPage: React.FC = () => {
-    const navigate = useNavigate();
-    const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
+const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
     const [valoraciones, setValoraciones] = useState<ValoracionDetailedResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
