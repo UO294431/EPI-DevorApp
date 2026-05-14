@@ -223,9 +223,9 @@ def update_usuario_profile(uid: str, nombre: str, apellidos: str, ubicacion: str
     })
 
 def update_usuario_email(uid: str, new_email: str) -> None:
-    """Actualiza el email en Firebase Auth y desmarca como verificado."""
+    """Actualiza el email en Firebase Auth y lo marca como verificado."""
     get_firebase_app()
-    fb_auth.update_user(uid, email=new_email, email_verified=False)
+    fb_auth.update_user(uid, email=new_email, email_verified=True)
 
 def update_usuario_password(uid: str, new_password: str) -> None:
     """Actualiza la contraseña en Firebase Auth."""

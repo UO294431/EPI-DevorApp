@@ -201,9 +201,7 @@ def update_email(
     response: Response
 ):
     auth_service.update_email(current_user.uid, current_user.email, data)
-    # Importante: al cambiar el email, invalidamos la sesión para forzar re-login con nuevo email verificado
-    response.delete_cookie(key="access_token")
-    return {"message": "Email actualizado. Por favor, verifica tu nueva bandeja de entrada e inicia sesión."}
+    return {"message": "Email actualizado correctamente."}
 
 @router.patch("/profile/password")
 def update_password(

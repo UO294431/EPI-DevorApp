@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   User, Mail, Lock, ChevronLeft, Camera, Edit3, 
-  Check, X, ShieldCheck, Eye, EyeOff, AlertCircle
+  Check, X, ShieldCheck, Eye, EyeOff, AlertCircle, MapPin
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
@@ -17,7 +17,7 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Edit states
-  const [editSection, setEditSection] = useState<'none' | 'personal' | 'email' | 'password' | 'delete'>('none');
+  const [editSection, setEditSection] = useState<'none' | 'personal' | 'location' | 'email' | 'password' | 'delete'>('none');
   const [formData, setFormData] = useState({
     nombre: '',
     apellidos: '',
@@ -27,6 +27,7 @@ const ProfilePage: React.FC = () => {
     newPassword: '',
     confirmPassword: ''
   });
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -55,7 +56,7 @@ const ProfilePage: React.FC = () => {
     fetchUser();
   }, [navigate, showNotification]);
 
-  const handleEdit = (section: 'personal' | 'email' | 'password' | 'delete') => {
+  const handleEdit = (section: 'personal' | 'location' | 'email' | 'password' | 'delete') => {
     setEditSection(section);
     setFormData(prev => ({
       ...prev,
@@ -80,15 +81,10 @@ const ProfilePage: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.currentPassword && editSection !== 'password') {
-      showNotification('Debes introducir tu contraseña actual para confirmar los cambios', 'error');
-      return;
-    }
 
     setIsSaving(true);
     try {
-      if (editSection === 'personal') {
+      if (editSection === 'personal' || editSection === 'location') {
         const result = await authService.updateProfile({
           nombre: formData.nombre,
           apellidos: formData.apellidos,
@@ -103,11 +99,15 @@ const ProfilePage: React.FC = () => {
       else if (editSection === 'email') {
         await authService.updateEmail({
           new_email: formData.email,
-          password: formData.currentPassword
+          password: ''
         });
-        showNotification('Se ha enviado un correo de confirmación. Por favor, verifica tu nueva bandeja de entrada.', 'success');
-        // El backend borra la cookie, así que redirigimos a login
-        setTimeout(() => navigate('/login'), 3000);
+        
+        const updatedUser = { ...user, email: formData.email };
+        setUser(updatedUser);
+        localStorage.setItem('devorapp_user_cache', JSON.stringify(updatedUser));
+        window.dispatchEvent(new CustomEvent('userUpdated', { detail: updatedUser }));
+        
+        showNotification('Correo actualizado correctamente.', 'success');
       }
       else if (editSection === 'password') {
         if (formData.newPassword !== formData.confirmPassword) {
@@ -172,15 +172,6 @@ const ProfilePage: React.FC = () => {
               }}>
                 {getInitials(user?.nombre, user?.username)}
               </div>
-              <button style={{
-                position: 'absolute', bottom: 0, right: 0,
-                width: 32, height: 32, borderRadius: '50%',
-                background: 'var(--surface-3)', border: '2px solid var(--bg)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text)', cursor: 'pointer'
-              }}>
-                <Camera size={16} />
-              </button>
             </div>
             <h1>{user?.nombre ? `${user.nombre} ${user.apellidos || ''}` : user?.username}</h1>
             <p>{user?.email}</p>
@@ -231,41 +222,6 @@ const ProfilePage: React.FC = () => {
                       />
                     </div>
                   </div>
-                  
-                  <div className="form-group">
-                    <label className="form-label">Ubicación preferida</label>
-                    <Autocomplete
-                      apiKey={import.meta.env.VITE_GOOGLE_API_KEY}
-                      onPlaceSelected={(place) => {
-                        if (place?.formatted_address) {
-                          setFormData({...formData, ubicacion: place.formatted_address});
-                        }
-                      }}
-                      onChange={(e: any) => setFormData({...formData, ubicacion: e.target.value})}
-                      options={{ types: [] }}
-                      className="form-input"
-                      placeholder="Ciudad, barrio o dirección..."
-                      defaultValue={formData.ubicacion}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label className="form-label">Contraseña actual para confirmar</label>
-                    <div className="form-input-wrap">
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        className="form-input" 
-                        value={formData.currentPassword} 
-                        onChange={e => setFormData({...formData, currentPassword: e.target.value})}
-                        placeholder="Introduce tu contraseña"
-                        required 
-                      />
-                      <button type="button" className="input-action-btn" onClick={() => setShowPassword(!showPassword)}>
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
                     <button type="button" className="btn-social" onClick={handleCancel} style={{ flex: 1, minHeight: '44px' }}>
                       Cancelar
@@ -285,10 +241,62 @@ const ProfilePage: React.FC = () => {
                     <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' }}>Apellidos</span>
                     <span style={{ fontSize: '1rem', fontWeight: 500 }}>{user?.apellidos || '—'}</span>
                   </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' }}>Ubicación</span>
-                    <span style={{ fontSize: '1rem', fontWeight: 500 }}>{user?.ubicacion || '—'}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Location Section */}
+            <div className={`location-info-card`} style={{ 
+              flexDirection: 'column', gap: '1rem', alignItems: 'stretch',
+              border: editSection === 'location' ? '1px solid var(--accent)' : '1px solid var(--border)',
+              background: editSection === 'location' ? 'var(--surface-3)' : 'var(--surface-2)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="location-info-icon" style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #f59e0b, #ef4444)' }}>
+                    <MapPin size={18} />
                   </div>
+                  <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>Ubicación Preferida</span>
+                </div>
+                {editSection !== 'location' && (
+                  <button className="btn-ghost" onClick={() => handleEdit('location')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+                    <Edit3 size={14} /> Cambiar
+                  </button>
+                )}
+              </div>
+
+              {editSection === 'location' ? (
+                <form onSubmit={handleSave} className="auth-form" style={{ marginTop: '0.5rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Ubicación</label>
+                    <Autocomplete
+                      apiKey={import.meta.env.VITE_GOOGLE_API_KEY}
+                      onPlaceSelected={(place) => {
+                        if (place?.formatted_address) {
+                          setFormData({...formData, ubicacion: place.formatted_address});
+                        }
+                      }}
+                      onChange={(e: any) => setFormData({...formData, ubicacion: e.target.value})}
+                      options={{ types: [] }}
+                      className="form-input"
+                      placeholder="Ciudad, barrio o dirección..."
+                      defaultValue={formData.ubicacion}
+                    />
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                    <button type="button" className="btn-social" onClick={handleCancel} style={{ flex: 1, minHeight: '44px' }}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className={`btn-primary ${isSaving ? 'loading' : ''}`} style={{ flex: 2, minHeight: '44px', marginTop: 0 }} disabled={isSaving}>
+                      Guardar cambios
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div style={{ padding: '0.5rem 0' }}>
+                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase' }}>Ubicación actual</span>
+                  <span style={{ fontSize: '1rem', fontWeight: 500 }}>{user?.ubicacion || '—'}</span>
                 </div>
               )}
             </div>
@@ -324,24 +332,6 @@ const ProfilePage: React.FC = () => {
                       onChange={e => setFormData({...formData, email: e.target.value})}
                       required 
                     />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', padding: '0.75rem', background: 'rgba(124, 109, 250, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(124, 109, 250, 0.2)' }}>
-                      <AlertCircle size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', margin: 0 }}>Deberás confirmar el nuevo correo antes de que el cambio sea efectivo.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label className="form-label">Contraseña actual para confirmar</label>
-                    <div className="form-input-wrap">
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        className="form-input" 
-                        value={formData.currentPassword} 
-                        onChange={e => setFormData({...formData, currentPassword: e.target.value})}
-                        placeholder="Introduce tu contraseña"
-                        required 
-                      />
-                    </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
@@ -485,9 +475,13 @@ const ProfilePage: React.FC = () => {
                   ) : (
                     <form onSubmit={async (e) => {
                   e.preventDefault();
+                  if (deleteConfirmText !== 'CONFIRMAR') {
+                    showNotification('Debes escribir CONFIRMAR para continuar', 'error');
+                    return;
+                  }
                   setIsSaving(true);
                   try {
-                    await authService.deleteAccount(formData.currentPassword);
+                    await authService.deleteAccount('');
                     showNotification('Cuenta eliminada correctamente. Adiós.', 'success');
                     localStorage.removeItem('devorapp_user_cache');
                     setTimeout(() => navigate('/login'), 2000);
@@ -498,25 +492,28 @@ const ProfilePage: React.FC = () => {
                   }
                 }} className="auth-form">
                   <p style={{ fontSize: '0.85rem', color: 'var(--error)', margin: 0 }}>
-                    Esta acción es irreversible. Se borrarán todos tus favoritos, historial y valoraciones.
+                    Esta acción es <strong>irreversible</strong>. Se borrarán todos tus favoritos, historial y valoraciones.
                   </p>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="delete-password-input" style={{ color: 'var(--error)' }}>Introduce tu contraseña para confirmar la eliminación</label>
-                    <input 
-                      id="delete-password-input"
-                      type="password" 
-                      className="form-input" 
+                  <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                    <label className="form-label" htmlFor="delete-confirm-input" style={{ color: 'var(--error)' }}>
+                      Escribe <strong>CONFIRMAR</strong> para continuar
+                    </label>
+                    <input
+                      id="delete-confirm-input"
+                      type="text"
+                      className="form-input"
                       style={{ borderColor: 'var(--error-border)' }}
-                      value={formData.currentPassword} 
-                      onChange={e => setFormData({...formData, currentPassword: e.target.value})}
-                      required 
+                      value={deleteConfirmText}
+                      onChange={e => setDeleteConfirmText(e.target.value)}
+                      placeholder="CONFIRMAR"
+                      autoComplete="off"
                     />
                   </div>
                   <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button type="button" className="btn-social" onClick={handleCancel} style={{ flex: 1, minHeight: '40px' }}>
+                    <button type="button" className="btn-social" onClick={() => { handleCancel(); setDeleteConfirmText(''); }} style={{ flex: 1, minHeight: '40px' }}>
                       Cancelar
                     </button>
-                    <button type="submit" className="btn-primary" style={{ flex: 1, minHeight: '40px', marginTop: 0, background: 'var(--error)', boxShadow: 'none' }} disabled={isSaving}>
+                    <button type="submit" className="btn-primary" style={{ flex: 1, minHeight: '40px', marginTop: 0, background: 'var(--error)', boxShadow: 'none' }} disabled={isSaving || deleteConfirmText !== 'CONFIRMAR'}>
                       {isSaving ? 'Eliminando...' : 'Eliminar permanentemente'}
                     </button>
                   </div>

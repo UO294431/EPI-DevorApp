@@ -93,6 +93,10 @@ const LoginPage: React.FC = () => {
 
   const submitGoogleUsername = async () => {
     if (!newUsername.trim() || !googleToken) return;
+    if (!newUbicacion.trim()) {
+      setGoogleError('La ubicación es obligatoria para completar el registro.');
+      return;
+    }
     setGoogleLoading(true);
     setGoogleError(null);
     try {
@@ -335,10 +339,11 @@ const LoginPage: React.FC = () => {
           <div className="sidemenu-backdrop" onClick={() => setShowUsernameModal(false)} />
           <div className="auth-content" style={{ position: 'relative', zIndex: 10000, background: 'var(--bg)', padding: '2rem', borderRadius: '1rem', width: '90%', maxWidth: '400px' }}>
             <h2>Elige tu nombre de usuario</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
               Ya casi terminamos. Solo necesitas elegir un nombre de usuario y tu ubicación preferida para completar tu registro con Google.
             </p>
             <div className="form-group">
+              <label className="form-label">Nombre de usuario <span style={{color:'var(--error)'}}>*</span></label>
               <input
                 type="text"
                 className="form-input"
@@ -348,6 +353,7 @@ const LoginPage: React.FC = () => {
               />
             </div>
             <div className="form-group" style={{ marginTop: '0.75rem' }}>
+              <label className="form-label">Ubicación preferida <span style={{color:'var(--error)'}}>*</span></label>
               <Autocomplete
                 apiKey={import.meta.env.VITE_GOOGLE_API_KEY}
                 onPlaceSelected={(place) => {
@@ -358,8 +364,9 @@ const LoginPage: React.FC = () => {
                 onChange={(e: any) => setNewUbicacion(e.target.value)}
                 options={{ types: [] }}
                 className="form-input"
-                placeholder="Ubicación favorita (ej. Madrid)"
+                placeholder="Ciudad, barrio o dirección..."
                 defaultValue={newUbicacion}
+                style={{ position: 'relative', zIndex: 10001 }}
               />
             </div>
             {googleError && (
@@ -369,7 +376,7 @@ const LoginPage: React.FC = () => {
             )}
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
               <button className="btn-back" onClick={() => setShowUsernameModal(false)} disabled={googleLoading}>Cancelar</button>
-              <button className={`btn-primary${googleLoading ? ' loading' : ''}`} onClick={submitGoogleUsername} disabled={googleLoading || !newUsername.trim()}>
+              <button className={`btn-primary${googleLoading ? ' loading' : ''}`} onClick={submitGoogleUsername} disabled={googleLoading || !newUsername.trim() || !newUbicacion.trim()}>
                 {!googleLoading && 'Completar registro'}
               </button>
             </div>

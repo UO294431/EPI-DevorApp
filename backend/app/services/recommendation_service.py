@@ -218,6 +218,17 @@ class RecommendationService:
         if not photos or not photos[0].get("name"): return ""
         return f"https://places.googleapis.com/v1/{photos[0]['name']}/media?maxHeightPx=400&maxWidthPx=400&key={settings.GOOGLE_API_KEY}"
 
+    async def _geocode_location(self, location: str):
+        """Geocodifica una cadena de texto a coordenadas (lat, lng).
+        
+        Returns:
+            Tuple (lat, lng) si la geocodificación fue exitosa, (None, None) en caso contrario.
+        """
+        geo_res = await google_places_client.geocode(location)
+        if geo_res:
+            return geo_res["lat"], geo_res["lng"]
+        return None, None
+
     async def get_place_details(self, place_id: str) -> Dict[str, Any]:
         place = await google_places_client.get_place_details(place_id)
         if not place: return {}

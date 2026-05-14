@@ -10,13 +10,20 @@ class GooglePlacesClient:
         self.geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
 
     async def geocode(self, location: str) -> Optional[Dict[str, float]]:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{self.geocode_url}?address={location}&key={self.api_key}")
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("results"):
-                    return data["results"][0]["geometry"]["location"]
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.geocode_url}?address={location}&key={self.api_key}",
+                    timeout=5.0
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("results"):
+                        return data["results"][0]["geometry"]["location"]
+        except (httpx.TimeoutException, httpx.RequestError) as e:
+            print(f"[GooglePlacesClient] geocode timeout/error for '{location}': {e}")
         return None
+
 
     async def search_places(self, text_query: str, location_bias: Optional[Dict] = None, 
                              price_levels: Optional[List[str]] = None, 

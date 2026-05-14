@@ -138,13 +138,7 @@ def request_password_reset(email: str) -> None:
         send_password_reset_email(email)
 
 def update_profile(uid: str, email: str, data: ProfileUpdateRequest) -> Usuario:
-    # 1. Verificar contraseña actual
-    verified_uid = verify_password_and_get_uid(email, data.password)
-    if verified_uid != uid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Contraseña incorrecta",
-        )
+    # No se requiere contraseña para actualizar el perfil
     
     # 2. Actualizar en Firestore
     update_usuario_profile(uid, data.nombre, data.apellidos, data.ubicacion)
@@ -167,20 +161,22 @@ def update_email(uid: str, current_email: str, data: EmailUpdateRequest) -> None
             detail="Este correo electrónico ya está en uso por otra cuenta",
         )
     
-    # 3. Verificar contraseña actual
-    verified_uid = verify_password_and_get_uid(current_email, data.password)
-    if verified_uid != uid:
+    # 3. Verificar si es usuario de Google
+    try:
+        user_record = fb_auth.get_user(uid)
+        is_google_user = any(p.provider_id == 'google.com' for p in user_record.provider_data)
+    except Exception:
+        is_google_user = False
+        
+    if is_google_user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Contraseña incorrecta",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los usuarios registrados con Google no pueden cambiar su correo electrónico. Tu correo está vinculado a tu cuenta de Google."
         )
     
-    # 3. Actualizar email en Firebase Auth
+    # 4. Actualizar email en Firebase Auth
     try:
         update_usuario_email(uid, data.new_email)
-        # 4. Enviar correo de verificación al nuevo email
-        # Usamos la contraseña actual para el re-auth necesario en send_verification_email
-        send_verification_email(data.new_email, data.password)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -214,13 +210,8 @@ def update_password(uid: str, email: str, data: PasswordUpdateRequest) -> None:
 
 
 def delete_account(uid: str, email: str, password: str, db: Session) -> None:
-    # 1. Verificar contraseña actual
-    verified_uid = verify_password_and_get_uid(email, password)
-    if verified_uid != uid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Contraseña incorrecta",
-        )
+    # La confirmación de identidad se hace en el frontend (campo "CONFIRMAR").
+    # El usuario ya está autenticado mediante cookie de sesión.
     
     # 2. Eliminar datos de la base de datos relacional (SQL)
     try:

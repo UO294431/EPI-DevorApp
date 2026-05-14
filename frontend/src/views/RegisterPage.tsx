@@ -8,17 +8,7 @@ import {
 import { useRegister } from '../controllers/hooks/useRegister';
 import { authService } from '../models/api/authService';
 import TopBar from '../components/TopBar';
-import { useGoogleLogin } from '@react-oauth/google';
 
-/* ─── Google SVG logo ─────────────────────────────── */
-const GoogleLogo: React.FC = () => (
-  <svg className="google-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-  </svg>
-);
 
 /* ─── Step progress bar ─────────────────────────────── */
 interface StepBarProps { current: number; total: number; }
@@ -47,48 +37,7 @@ const RegisterPage: React.FC = () => {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsLabel, setGpsLabel] = useState<string | null>(null);
 
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState<string | null>(null);
-  const [showUsernameModal, setShowUsernameModal] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [newUbicacion, setNewUbicacion] = useState('');
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
 
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setGoogleLoading(true);
-      setGoogleError(null);
-      try {
-        const res = await authService.loginWithGoogle(tokenResponse.access_token);
-        if (res.require_username) {
-          setGoogleToken(tokenResponse.access_token);
-          setShowUsernameModal(true);
-        } else {
-          handleSwitchToLogin();
-        }
-      } catch (err: any) {
-        setGoogleError(err.message);
-      } finally {
-        setGoogleLoading(false);
-      }
-    },
-    onError: () => setGoogleError('Error al conectar con Google'),
-  });
-
-  const submitGoogleUsername = async () => {
-    if (!newUsername.trim() || !googleToken) return;
-    setGoogleLoading(true);
-    setGoogleError(null);
-    try {
-      await authService.registerWithGoogle(googleToken, newUsername.trim(), newUbicacion.trim());
-      setShowUsernameModal(false);
-      handleSwitchToLogin(); // Redirigir al inicio de sesión
-    } catch (err: any) {
-      setGoogleError(err.message);
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   /* ── Step 1 validation + availability check ── */
   const handleContinue = async () => {
@@ -96,14 +45,14 @@ const RegisterPage: React.FC = () => {
     setFieldErrors({});
 
     // Local validation first (fast, no network)
-    if (!form.email.trim())       return setStepError('El email es obligatorio.');
+    if (!form.email.trim()) return setStepError('El email es obligatorio.');
     if (!/\S+@\S+\.\S+/.test(form.email)) return setStepError('Introduce un email válido.');
-    if (!form.username.trim())    return setStepError('El nombre de usuario es obligatorio.');
+    if (!form.username.trim()) return setStepError('El nombre de usuario es obligatorio.');
     if (form.username.length < 3) return setStepError('El usuario debe tener al menos 3 caracteres.');
-    if (!form.password)           return setStepError('La contraseña es obligatoria.');
+    if (!form.password) return setStepError('La contraseña es obligatoria.');
     if (form.password.length < 8) return setStepError('La contraseña debe tener al menos 8 caracteres.');
-    if (!form.nombre.trim())      return setStepError('El nombre es obligatorio.');
-    if (!form.apellidos.trim())   return setStepError('Los apellidos son obligatorios.');
+    if (!form.nombre.trim()) return setStepError('El nombre es obligatorio.');
+    if (!form.apellidos.trim()) return setStepError('Los apellidos son obligatorios.');
 
     // Remote availability check
     setCheckLoading(true);
@@ -114,7 +63,7 @@ const RegisterPage: React.FC = () => {
       );
 
       const errs: { email?: string; username?: string } = {};
-      if (email_taken)    errs.email    = 'Este email ya está registrado.';
+      if (email_taken) errs.email = 'Este email ya está registrado.';
       if (username_taken) errs.username = 'Este nombre de usuario ya está en uso.';
 
       if (Object.keys(errs).length > 0) {
@@ -169,7 +118,7 @@ const RegisterPage: React.FC = () => {
     const p = form.password;
     if (!p) return 0;
     let s = 0;
-    if (p.length >= 8)  s++;
+    if (p.length >= 8) s++;
     if (/[A-Z]/.test(p)) s++;
     if (/[0-9]/.test(p)) s++;
     if (/[^A-Za-z0-9]/.test(p)) s++;
@@ -358,35 +307,6 @@ const RegisterPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Social auth */}
-              <div className="auth-divider" aria-hidden="true" style={{ marginTop: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <span className="line" style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-                <span style={{ color: 'var(--text-muted)' }}>o</span>
-                <span className="line" style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-              </div>
-
-              {googleError && (
-                <div className="message error" role="alert" style={{ marginBottom: '1rem' }}>
-                  <AlertCircle size={16} /> {googleError}
-                </div>
-              )}
-              
-              <button
-                type="button"
-                id="google-login-btn"
-                className="btn-social"
-                onClick={() => handleGoogleLogin()}
-                disabled={googleLoading}
-                aria-label="Iniciar sesión con Google"
-              >
-                {googleLoading ? 'Cargando...' : (
-                  <>
-                    <GoogleLogo />
-                    Continuar con Google
-                  </>
-                )}
-              </button>
-
               <p className="auth-footer" style={{ marginTop: '1.5rem' }}>
                 ¿Ya tienes cuenta?{' '}
                 <Link to="/login" id="go-login-link">Inicia sesión</Link>
@@ -506,54 +426,6 @@ const RegisterPage: React.FC = () => {
 
         </div>
       </main>
-
-      {/* Modal para nuevo nombre de usuario */}
-      {showUsernameModal && (
-        <div className="sidemenu-overlay open" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="sidemenu-backdrop" onClick={() => setShowUsernameModal(false)} />
-          <div className="auth-content" style={{ position: 'relative', zIndex: 10000, background: 'var(--bg)', padding: '2rem', borderRadius: '1rem', width: '90%', maxWidth: '400px' }}>
-            <h2>Elige tu nombre de usuario</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              Ya casi terminamos. Solo necesitas elegir un nombre de usuario y tu ubicación preferida para completar tu registro con Google.
-            </p>
-            <div className="form-group">
-              <input
-                type="text"
-                className="form-input"
-                placeholder="@usuario"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-              />
-            </div>
-            <div className="form-group" style={{ marginTop: '0.75rem' }}>
-              <Autocomplete
-                apiKey={import.meta.env.VITE_GOOGLE_API_KEY}
-                onPlaceSelected={(place) => {
-                  if (place?.formatted_address) {
-                    setNewUbicacion(place.formatted_address);
-                  }
-                }}
-                onChange={(e: any) => setNewUbicacion(e.target.value)}
-                options={{ types: [] }}
-                className="form-input"
-                placeholder="Ubicación favorita (ej. Madrid)"
-                defaultValue={newUbicacion}
-              />
-            </div>
-            {googleError && (
-              <div className="message error" role="alert" style={{ marginBottom: '1rem' }}>
-                <AlertCircle size={16} /> {googleError}
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <button className="btn-back" onClick={() => setShowUsernameModal(false)} disabled={googleLoading}>Cancelar</button>
-              <button className={`btn-primary${googleLoading ? ' loading' : ''}`} onClick={submitGoogleUsername} disabled={googleLoading || !newUsername.trim()}>
-                {!googleLoading && 'Completar registro'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

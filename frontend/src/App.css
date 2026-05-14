@@ -640,6 +640,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   box-shadow: var(--shadow-md) !important;
   font-family: 'Inter', system-ui, sans-serif !important;
   margin-top: 4px;
+  z-index: 10005 !important;
 }
 .pac-item {
   color: var(--text) !important;
