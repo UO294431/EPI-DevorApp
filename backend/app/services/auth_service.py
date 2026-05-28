@@ -20,6 +20,7 @@ from app.infrastructure.repositories.usuario_repo import (
     update_usuario_password,
     delete_usuario_profile,
     delete_usuario_auth,
+    send_email_change_verification,
 )
 from app.models.dtos.auth_dto import (
     RegisterRequest, ProfileUpdateRequest, EmailUpdateRequest, 
@@ -174,13 +175,20 @@ def update_email(uid: str, current_email: str, data: EmailUpdateRequest) -> None
             detail="Los usuarios registrados con Google no pueden cambiar su correo electrónico. Tu correo está vinculado a tu cuenta de Google."
         )
     
-    # 4. Actualizar email en Firebase Auth
-    try:
-        update_usuario_email(uid, data.new_email)
-    except Exception as e:
+    # 4. Verificar contraseña actual
+    verified_uid = verify_password_and_get_uid(current_email, data.password)
+    if verified_uid != uid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Contraseña actual incorrecta",
+        )
+    
+    # 5. Enviar correo de verificación para cambio de email
+    success = send_email_change_verification(current_email, data.password, data.new_email)
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail="Error al enviar el correo de verificación para el cambio de email",
         )
 
 def update_password(uid: str, email: str, data: PasswordUpdateRequest) -> None:
@@ -343,6 +351,7 @@ def register_with_google(token: str, username: str, ubicacion: str = "") -> tupl
         "nombre": nombre,
         "apellidos": apellidos,
         "ubicacion": ubicacion,
+        "is_google": True,
     })
     
     user = get_usuario_by_uid(uid)

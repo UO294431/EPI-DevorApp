@@ -14,4 +14,5 @@ export interface User {
     nombre: string;
     apellidos: string;
     ubicacion?: string;
+    is_google?: boolean;
 }

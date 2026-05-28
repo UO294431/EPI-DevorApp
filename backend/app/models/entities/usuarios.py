@@ -9,3 +9,4 @@ class Usuario(BaseModel):
     nombre: str
     apellidos: str
     ubicacion: str
+    is_google: bool = False

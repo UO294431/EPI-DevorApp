@@ -35,6 +35,7 @@ def login(login_data: LoginRequest, response: Response):
             "nombre": user.nombre,
             "apellidos": user.apellidos,
             "ubicacion": user.ubicacion,
+            "is_google": user.is_google,
         },
     }
 
@@ -59,6 +60,7 @@ def register(data: RegisterRequest, db: Annotated[Session, Depends(get_db)]):
             "nombre": user.nombre,
             "apellidos": user.apellidos,
             "ubicacion": user.ubicacion,
+            "is_google": user.is_google,
         },
     }
 
@@ -95,6 +97,7 @@ def login_with_google(data: GoogleLoginRequest, response: Response):
             "nombre": user.nombre,
             "apellidos": user.apellidos,
             "ubicacion": user.ubicacion,
+            "is_google": user.is_google,
         },
     }
 
@@ -128,6 +131,7 @@ def register_with_google(data: GoogleRegisterRequest, db: Annotated[Session, Dep
             "nombre": user.nombre,
             "apellidos": user.apellidos,
             "ubicacion": user.ubicacion,
+            "is_google": user.is_google,
         },
     }
 
@@ -145,6 +149,7 @@ def get_me(current_user: Annotated[Usuario, Depends(get_current_user)]):
         "nombre": current_user.nombre,
         "apellidos": current_user.apellidos,
         "ubicacion": current_user.ubicacion,
+        "is_google": current_user.is_google,
     }
 
 @router.get("/check-verification/{email}")
@@ -201,7 +206,7 @@ def update_email(
     response: Response
 ):
     auth_service.update_email(current_user.uid, current_user.email, data)
-    return {"message": "Email actualizado correctamente."}
+    return {"message": "Se ha enviado un correo de confirmación. Por favor, verifica tu nueva bandeja de entrada."}
 
 @router.patch("/profile/password")
 def update_password(

@@ -99,15 +99,14 @@ const ProfilePage: React.FC = () => {
       else if (editSection === 'email') {
         await authService.updateEmail({
           new_email: formData.email,
-          password: ''
+          password: formData.currentPassword
         });
         
-        const updatedUser = { ...user, email: formData.email };
-        setUser(updatedUser);
-        localStorage.setItem('devorapp_user_cache', JSON.stringify(updatedUser));
-        window.dispatchEvent(new CustomEvent('userUpdated', { detail: updatedUser }));
+        // NO actualizamos el correo en el estado local todavía porque está pendiente de confirmación.
+        // Volvemos a poner el valor original en formData.email para la vista.
+        setFormData(prev => ({ ...prev, email: user.email }));
         
-        showNotification('Correo actualizado correctamente.', 'success');
+        showNotification('Se ha enviado un correo de confirmación. Por favor, verifica tu nueva bandeja de entrada.', 'success');
       }
       else if (editSection === 'password') {
         if (formData.newPassword !== formData.confirmPassword) {
@@ -314,7 +313,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>Correo Electrónico</span>
                 </div>
-                {editSection !== 'email' && (
+                {editSection !== 'email' && !user?.is_google && (
                   <button className="btn-ghost" onClick={() => handleEdit('email')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
                     <Edit3 size={14} /> Cambiar
                   </button>
@@ -330,6 +329,19 @@ const ProfilePage: React.FC = () => {
                       className="form-input" 
                       value={formData.email} 
                       onChange={e => setFormData({...formData, email: e.target.value})}
+                      required 
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="email-password-input">Contraseña de confirmación</label>
+                    <input 
+                      id="email-password-input"
+                      type="password" 
+                      className="form-input" 
+                      placeholder="Introduce tu contraseña"
+                      value={formData.currentPassword} 
+                      onChange={e => setFormData({...formData, currentPassword: e.target.value})}
                       required 
                     />
                   </div>
@@ -354,6 +366,16 @@ const ProfilePage: React.FC = () => {
                   }}>
                     <ShieldCheck size={12} /> Verificado
                   </div>
+                  {user?.is_google && (
+                    <div style={{ 
+                      display: 'flex', alignItems: 'center', gap: '0.3rem', 
+                      padding: '2px 8px', borderRadius: '12px', 
+                      background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent)',
+                      fontSize: '0.7rem', fontWeight: 700, border: '1px solid rgba(59, 130, 246, 0.2)'
+                    }}>
+                      Vinculado a Google
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -371,7 +393,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>Seguridad</span>
                 </div>
-                {editSection !== 'password' && (
+                {editSection !== 'password' && !user?.is_google && (
                   <button className="btn-ghost" onClick={() => handleEdit('password')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
                     <Edit3 size={14} /> Cambiar contraseña
                   </button>
@@ -428,8 +450,16 @@ const ProfilePage: React.FC = () => {
                 </form>
               ) : (
                 <div style={{ padding: '0.5rem 0' }}>
-                  <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>••••••••••••</span>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>Último cambio hace 3 meses</p>
+                  {user?.is_google ? (
+                    <span style={{ color: 'var(--muted)', fontSize: '0.95rem' }}>
+                      Iniciaste sesión con Google. La seguridad de tu cuenta se gestiona a través de Google.
+                    </span>
+                  ) : (
+                    <>
+                      <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>••••••••••••</span>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>Último cambio hace 3 meses</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>

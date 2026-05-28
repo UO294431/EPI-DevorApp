@@ -41,6 +41,7 @@ async def test_login_success(async_client, mock_auth_service, dummy_usuario):
             "nombre": "Test",
             "apellidos": "User",
             "ubicacion": "Madrid",
+            "is_google": False,
         }
     }
     # Verifica que se setea la cookie
@@ -73,6 +74,7 @@ async def test_register_success(async_client, mock_auth_service, dummy_usuario):
             "nombre": "Test",
             "apellidos": "User",
             "ubicacion": "Madrid",
+            "is_google": False,
         }
     }
     mock_auth_service.register.assert_called_once()
@@ -116,6 +118,7 @@ async def test_get_me(async_client, dummy_usuario):
         "nombre": "Test",
         "apellidos": "User",
         "ubicacion": "Madrid",
+        "is_google": False,
     }
 
 

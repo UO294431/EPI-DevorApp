@@ -101,11 +101,9 @@ describe('ProfilePage', () => {
         // Verificamos que se abrió el formulario
         const nameInput = screen.getByDisplayValue('Ana');
         const lastnameInput = screen.getByDisplayValue('García');
-        const passwordInput = screen.getByPlaceholderText('Introduce tu contraseña');
 
         // Modificamos datos
         fireEvent.change(nameInput, { target: { value: 'Laura' } });
-        fireEvent.change(passwordInput, { target: { value: 'password123' } });
 
         (authService.updateProfile as any).mockResolvedValue({
             message: 'Success',
@@ -119,7 +117,8 @@ describe('ProfilePage', () => {
             expect(authService.updateProfile).toHaveBeenCalledWith({
                 nombre: 'Laura',
                 apellidos: 'García',
-                password: 'password123',
+                ubicacion: 'Madrid',
+                password: '',
             });
             expect(mockShowNotification).toHaveBeenCalledWith('Perfil actualizado correctamente', 'success');
         });
@@ -136,7 +135,7 @@ describe('ProfilePage', () => {
 
         // El botón dice "Cambiar", pero usamos getAll por si acaso
         const changeButtons = screen.getAllByRole('button', { name: /Cambiar$/i });
-        fireEvent.click(changeButtons[0]);
+        fireEvent.click(changeButtons[1]);
 
         const newEmailInput = screen.getAllByRole('textbox').find(input => (input as HTMLInputElement).type === 'email')!;
         const passwordInput = screen.getByPlaceholderText('Introduce tu contraseña');
@@ -221,16 +220,39 @@ describe('ProfilePage', () => {
         const deleteButtons = screen.getAllByRole('button', { name: /Eliminar cuenta permanentemente/i });
         fireEvent.click(deleteButtons[0]);
 
-        const passwordInput = screen.getByLabelText(/Introduce tu contraseña para confirmar la eliminación/i);
-        fireEvent.change(passwordInput, { target: { value: 'password123' } });
+        const confirmInput = screen.getByLabelText(/Escribe CONFIRMAR para continuar/i);
+        fireEvent.change(confirmInput, { target: { value: 'CONFIRMAR' } });
 
         (authService.deleteAccount as any).mockResolvedValue({ message: 'Success' });
 
         fireEvent.click(screen.getByRole('button', { name: 'Eliminar permanentemente' }));
 
         await waitFor(() => {
-            expect(authService.deleteAccount).toHaveBeenCalledWith('password123');
+            expect(authService.deleteAccount).toHaveBeenCalledWith('');
             expect(mockShowNotification).toHaveBeenCalledWith('Cuenta eliminada correctamente. Adiós.', 'success');
         });
+    });
+
+    // ── 6. Usuario de Google ──────────────────────────────────────────────────
+    it('no debe mostrar los botones para cambiar correo y contraseña si el usuario es de Google', async () => {
+        (authService.getMe as any).mockResolvedValue({
+            ...mockUser,
+            is_google: true,
+        });
+
+        renderProfilePage();
+
+        await waitFor(() => expect(screen.getAllByText('test@example.com')[0]).toBeInTheDocument());
+
+        // Verificamos que se muestra el badge de Google
+        expect(screen.getByText('Vinculado a Google')).toBeInTheDocument();
+
+        // El de Ubicación dice "Cambiar" también. Así que debería haber exactamente 1 botón con el texto "Cambiar".
+        const changeButtons = screen.getAllByRole('button', { name: /Cambiar$/i });
+        expect(changeButtons).toHaveLength(1); // Solo el de Ubicación
+
+        // El de contraseña no debe estar en absoluto
+        expect(screen.queryByRole('button', { name: /Cambiar contraseña/i })).not.toBeInTheDocument();
+        expect(screen.getByText('Iniciaste sesión con Google. La seguridad de tu cuenta se gestiona a través de Google.')).toBeInTheDocument();
     });
 });

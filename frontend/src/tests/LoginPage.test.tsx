@@ -11,6 +11,10 @@ vi.mock('../models/api/authService', () => ({
     },
 }));
 
+vi.mock('@react-oauth/google', () => ({
+    useGoogleLogin: vi.fn(),
+}));
+
 import { authService } from '../models/api/authService';
 
 // Helper: render LoginPage dentro de un Router (necesario por useNavigate/Link)

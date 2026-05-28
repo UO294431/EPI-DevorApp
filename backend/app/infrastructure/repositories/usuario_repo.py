@@ -85,6 +85,47 @@ def send_verification_email(email: str, password: str) -> bool:
         print(f"DEBUG: RequestError fetching Firebase API: {e}")
         return False
 
+def send_email_change_verification(email: str, password: str, new_email: str) -> bool:
+    """
+    Inicia sesión temporalmente para obtener un idToken y solicita el envío
+    del correo de verificación para cambio de email mediante la REST API.
+    """
+    get_firebase_app()
+    login_url = (
+        "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
+        f"?key={settings.FIREBASE_API_KEY}"
+    )
+    try:
+        login_resp = httpx.post(
+            login_url,
+            json={"email": email, "password": password, "returnSecureToken": True},
+            timeout=10.0,
+        )
+        if login_resp.status_code != 200:
+            return False
+        
+        id_token = login_resp.json().get("idToken")
+        if not id_token:
+            return False
+
+        verify_url = (
+            "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode"
+            f"?key={settings.FIREBASE_API_KEY}"
+        )
+        verify_resp = httpx.post(
+            verify_url,
+            json={
+                "requestType": "VERIFY_AND_CHANGE_EMAIL",
+                "idToken": id_token,
+                "newEmail": new_email
+            },
+            timeout=10.0,
+        )
+        return verify_resp.status_code == 200
+    except httpx.RequestError:
+        return False
+
+
 def send_password_reset_email(email: str) -> bool:
     """
     Envía un correo de recuperación de contraseña nativo de Firebase al usuario.
@@ -119,6 +160,8 @@ def get_usuario_by_uid(uid: str) -> Optional[Usuario]:
     doc = db.collection("usuarios").document(uid).get()
     profile: dict = doc.to_dict() or {}
 
+    is_google = profile.get("is_google", False)
+
     return Usuario(
         uid=uid,
         username=profile.get("username", uid),
@@ -126,6 +169,7 @@ def get_usuario_by_uid(uid: str) -> Optional[Usuario]:
         nombre=profile.get("nombre", ""),
         apellidos=profile.get("apellidos", ""),
         ubicacion=profile.get("ubicacion", ""),
+        is_google=is_google,
     )
 
 
@@ -202,6 +246,7 @@ def create_usuario(
         "nombre": nombre,
         "apellidos": apellidos,
         "ubicacion": ubicacion,
+        "is_google": False,
     })
 
     return Usuario(
