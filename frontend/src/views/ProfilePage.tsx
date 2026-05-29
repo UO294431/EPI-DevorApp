@@ -31,6 +31,8 @@ const ProfilePage: React.FC = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [locationValid, setLocationValid] = useState(false);
+  const [locationError, setLocationError] = useState('');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -64,6 +66,11 @@ const ProfilePage: React.FC = () => {
       newPassword: '',
       confirmPassword: ''
     }));
+    // Al entrar en edición de ubicación, la consideramos válida si ya tiene valor
+    if (section === 'location') {
+      setLocationValid(true);
+      setLocationError('');
+    }
   };
 
   const handleCancel = () => {
@@ -85,6 +92,12 @@ const ProfilePage: React.FC = () => {
     setIsSaving(true);
     try {
       if (editSection === 'personal' || editSection === 'location') {
+        // Validar que la ubicación fue seleccionada del desplegable de Google
+        if (editSection === 'location' && !locationValid) {
+          setLocationError('Debes seleccionar una ubicación válida de la lista.');
+          setIsSaving(false);
+          return;
+        }
         const result = await authService.updateProfile({
           nombre: formData.nombre,
           apellidos: formData.apellidos,
@@ -273,14 +286,26 @@ const ProfilePage: React.FC = () => {
                       onPlaceSelected={(place) => {
                         if (place?.formatted_address) {
                           setFormData({...formData, ubicacion: place.formatted_address});
+                          setLocationValid(true);
+                          setLocationError('');
                         }
                       }}
-                      onChange={(e: any) => setFormData({...formData, ubicacion: e.target.value})}
+                      onChange={(e: any) => {
+                        setFormData({...formData, ubicacion: e.target.value});
+                        // Al editar el texto manualmente, la selección deja de ser válida
+                        setLocationValid(false);
+                        setLocationError('');
+                      }}
                       options={{ types: [] }}
-                      className="form-input"
+                      className={`form-input${locationError ? ' input-error' : ''}`}
                       placeholder="Ciudad, barrio o dirección..."
                       defaultValue={formData.ubicacion}
                     />
+                    {locationError && (
+                      <span style={{ color: 'var(--error)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                        {locationError}
+                      </span>
+                    )}
                   </div>
                   
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
