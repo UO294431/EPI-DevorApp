@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Autocomplete from "react-google-autocomplete";
-import { Search, Star, ChevronLeft, Flame, MapPin, SlidersHorizontal, Map, Heart, Bookmark, UtensilsCrossed } from 'lucide-react';
+import { Star, MapPin, SlidersHorizontal, Heart, Bookmark, UtensilsCrossed } from 'lucide-react';
 import TopBar from '../components/TopBar';
 import { authService } from '../models/api/authService';
 import { recommendationService } from '../models/api/recommendationService';
@@ -345,7 +345,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                             <>
                                 <div className="detail-actions-column">
                                     <button
-                                        onClick={async (e) => {
+                                        onClick={async (_e) => {
                                             try {
                                                 await historialService.addToHistorial(selectedEntryForDetail.id);
                                                 showNotification(`¡Has seleccionado ${selectedEntryForDetail.name}!`, 'success');
@@ -360,7 +360,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                         SELECCIONAR ESTE RESTAURANTE
                                     </button>
                                     <button
-                                        onClick={async (e) => {
+                                        onClick={async (_e) => {
                                             try {
                                                 const response = await savedForLaterService.saveForLater({
                                                     place_id: selectedEntryForDetail.id,
@@ -604,7 +604,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                             <>
                                 <div className="detail-actions-column">
                                     <button
-                                        onClick={async (e) => {
+                                        onClick={async (_e) => {
                                             try {
                                                 await historialService.addToHistorial(selectedEntryForDetail.id);
                                                 showNotification(`Has seleccionado ${selectedEntryForDetail.name}`, 'success');
@@ -619,7 +619,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                         SELECCIONAR ESTE RESTAURANTE
                                     </button>
                                     <button
-                                        onClick={async (e) => {
+                                        onClick={async (_e) => {
                                             try {
                                                 const response = await savedForLaterService.saveForLater({
                                                     place_id: selectedEntryForDetail.id,

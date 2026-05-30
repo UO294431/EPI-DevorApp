@@ -1,11 +1,15 @@
 stages:
   - test
   - build
+  - android
+  - deploy
 
 variables:
   DOCKER_DRIVER: overlay2
   BACKEND_IMAGE: "$CI_REGISTRY_IMAGE/backend"
   FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/frontend"
+  ANDROID_SDK_ROOT: /opt/android-sdk
+  ANDROID_HOME: /opt/android-sdk
 
 # ─── BACKEND ────────────────────────────────────────────────────────────────
 
@@ -13,6 +17,8 @@ test_backend:
   stage: test
   image: python:3.12-slim
   before_script:
+    # libpq-dev + gcc are required to compile psycopg2 from source
+    - apt-get update -qq && apt-get install -y -qq libpq-dev gcc
     - pip install poetry
     - cd backend
     - poetry install --with dev
@@ -51,7 +57,7 @@ test_frontend:
     - merge_requests
     - tags
 
-# ─── BUILD ──────────────────────────────────────────────────────────────────
+# ─── BUILD (Docker images) ───────────────────────────────────────────────────
 
 build_backend:
   stage: build
@@ -79,4 +85,80 @@ build_frontend:
     - docker push "$FRONTEND_IMAGE:latest"
   only:
     - main
+    - tags
+
+# ─── ANDROID APK ─────────────────────────────────────────────────────────────
+# Runs as soon as the frontend tests pass, independently of Docker builds.
+# Requires the android/ folder to be committed (run `npx cap add android` locally first).
+# Required CI variables: KEYSTORE_FILE (base64), KEYSTORE_STORE_PASSWORD,
+#                        KEYSTORE_KEY_ALIAS, KEYSTORE_KEY_PASSWORD
+
+build_apk:
+  stage: android
+  image: node:22-bookworm
+  needs:
+    - test_frontend
+    - lint_frontend
+  variables:
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-cache"
+  cache:
+    key: android-gradle-$CI_COMMIT_REF_SLUG
+    paths:
+      - .gradle-cache/
+      - frontend/android/.gradle/
+  before_script:
+    # Install Java 17 and tools
+    - apt-get update -qq && apt-get install -y -qq default-jdk-headless wget unzip
+    # Install Android command-line tools (update URL from https://developer.android.com/studio if needed)
+    - mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+    - wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdlinetools.zip
+    - unzip -q /tmp/cmdlinetools.zip -d /tmp/
+    - mv /tmp/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+    - export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+    # Accept licenses and install SDK components
+    - yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+    # Build web assets and sync into android project
+    - cd frontend
+    - npm ci
+    - npm run build
+    - npx cap sync android
+  script:
+    - cd frontend/android
+    # Decode keystore from CI variable (store as base64-encoded masked variable)
+    - echo "$KEYSTORE_FILE" | base64 --decode > keystore.jks
+    - |
+      ./gradlew assembleRelease \
+        -Pandroid.injected.signing.store.file=$CI_PROJECT_DIR/frontend/android/keystore.jks \
+        -Pandroid.injected.signing.store.password=$KEYSTORE_STORE_PASSWORD \
+        -Pandroid.injected.signing.key.alias=$KEYSTORE_KEY_ALIAS \
+        -Pandroid.injected.signing.key.password=$KEYSTORE_KEY_PASSWORD
+  artifacts:
+    name: "devorapp-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - frontend/android/app/build/outputs/apk/release/app-release.apk
+    expire_in: 2 weeks
+  only:
+    - main
+    - tags
+
+# ─── PLAY STORE DEPLOY ───────────────────────────────────────────────────────
+# Triggered only on tags (e.g. v1.0.0). Uploads the signed APK to the
+# internal track. Promote to production manually in the Play Console.
+# Required CI variable: GOOGLE_PLAY_JSON_KEY (service account JSON, file variable)
+
+deploy_play_store:
+  stage: deploy
+  image: ruby:3.3-slim
+  needs:
+    - build_apk
+  before_script:
+    - gem install fastlane --no-document
+    - cp "$GOOGLE_PLAY_JSON_KEY" $CI_PROJECT_DIR/frontend/google-play-key.json
+  script:
+    - cd frontend
+    - fastlane android deploy
+  environment:
+    name: production
+    url: https://play.google.com/store/apps/details?id=com.devorapp.epi
+  only:
     - tags

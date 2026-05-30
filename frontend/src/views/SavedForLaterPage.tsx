@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Clock, Search, Star, UtensilsCrossed, X, MoreVertical,
-    Map, Globe, Trash2, ChevronRight, Plus, Bookmark
+    Map, Trash2, Bookmark
 } from 'lucide-react';
 import { savedForLaterService } from '../models/api/savedForLaterService';
 import type { SavedForLaterEntry } from '../models/api/savedForLaterService';

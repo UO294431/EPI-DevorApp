@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react-swc'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
@@ -21,5 +21,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/tests/setupTests.ts'],
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   }
 })

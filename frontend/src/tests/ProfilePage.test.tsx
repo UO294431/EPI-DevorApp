@@ -100,7 +100,6 @@ describe('ProfilePage', () => {
 
         // Verificamos que se abrió el formulario
         const nameInput = screen.getByDisplayValue('Ana');
-        const lastnameInput = screen.getByDisplayValue('García');
 
         // Modificamos datos
         fireEvent.change(nameInput, { target: { value: 'Laura' } });
@@ -122,7 +121,7 @@ describe('ProfilePage', () => {
             });
             expect(mockShowNotification).toHaveBeenCalledWith('Perfil actualizado correctamente', 'success');
         });
-        
+
         // Verifica que la UI se actualizó
         expect(screen.getAllByText('Laura García')[0]).toBeInTheDocument();
     });

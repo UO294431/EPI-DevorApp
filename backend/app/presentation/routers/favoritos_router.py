@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.infrastructure.database import get_db
-from app.models.dtos.favoritos_dto import ListaCreate, FavoritoCreate
+from app.models.dtos.favoritos_dto import ListaCreate, ListaUpdate, FavoritoCreate
 from app.models.entities.usuarios import Usuario
 from app.services import favoritos_service
 

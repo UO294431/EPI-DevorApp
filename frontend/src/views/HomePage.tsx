@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, MapPin, Navigation, Star,
-  Clock, Bookmark, ChevronRight, AlertCircle, UtensilsCrossed, Loader2, Heart
+  Bookmark, ChevronRight, AlertCircle, UtensilsCrossed, Loader2, Heart
 } from 'lucide-react';
 import { useLogout } from '../controllers/hooks/useLogout';
 import { authService } from '../models/api/authService';
@@ -18,7 +18,7 @@ import { useNotification } from '../components/NotificationSystem';
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { submitLogout } = useLogout(() => navigate('/login'));
+  useLogout(() => navigate('/login'));
   const { showNotification } = useNotification();
 
   const [nombre, setNombre] = useState('');

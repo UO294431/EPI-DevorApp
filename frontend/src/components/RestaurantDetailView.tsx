@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { 
-    ChevronLeft, Star, Clock, Map, Globe, ChevronDown, ChevronUp, 
-    Link as LinkIcon, Phone 
+import {
+    ChevronLeft, Star, Clock, Map, Globe, ChevronDown, ChevronUp,
+    Phone
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import TopBar from './TopBar';
 
 interface RestaurantDetailViewProps {

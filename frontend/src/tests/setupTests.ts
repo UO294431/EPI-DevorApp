@@ -7,7 +7,7 @@ import React from 'react';
 
 vi.mock('react-google-autocomplete', () => {
     return {
-        default: ({ onPlaceSelected, apiKey, ...props }: any) => {
+        default: ({ onPlaceSelected, apiKey: _apiKey, ...props }: any) => {
             return React.createElement('input', {
                 ...props,
                 'data-testid': 'mock-autocomplete',
