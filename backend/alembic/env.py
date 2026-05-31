@@ -34,6 +34,12 @@ import app.models.entities.mas_tarde
 
 target_metadata = Base.metadata
 
+# Override sqlalchemy.url from DATABASE_URL env var if set
+# (needed so Docker containers connect to the 'db' service, not localhost)
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")

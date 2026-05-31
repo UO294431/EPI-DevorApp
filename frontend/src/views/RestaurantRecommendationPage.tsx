@@ -336,7 +336,7 @@ const RestaurantRecommendationPage: React.FC = () => {
     if (selectedEntryForDetail) {
         return (
             <div className="page-screen">
-                <div style={{ animation: 'fadeIn 0.2s ease', position: 'relative', zIndex: 10 }}>
+                <div style={{ animation: 'fadeIn 0.2s ease', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                     <RestaurantDetailView
                         restaurant={selectedEntryForDetail}
                         backText="Resultados"

@@ -206,11 +206,23 @@ class RecommendationService:
         for p in places:
             ts = p.get("types", [])
             if any(t in EXCLUDED_TYPES for t in ts) and not any(t in {"restaurant", "bar", "cafe"} or t.endswith("_restaurant") for t in ts): continue
+            hours_info = p.get("regularOpeningHours") or {}
             formatted.append({
-                "id": p.get("id"), "name": p.get("displayName", {}).get("text", "Sin nombre"), "address": p.get("formattedAddress"),
-                "price_level": p.get("priceLevel"), "rating": p.get("rating"), "user_ratings_total": p.get("userRatingCount"),
-                "types": ts, "main_photo": self._get_photo_url(p.get("photos", [])), "google_maps_uri": p.get("googleMapsUri"),
-                "website_uri": p.get("websiteUri"), "latitude": p.get("location", {}).get("latitude"), "longitude": p.get("location", {}).get("longitude")
+                "id": p.get("id"),
+                "name": p.get("displayName", {}).get("text", "Sin nombre"),
+                "address": p.get("formattedAddress"),
+                "price_level": p.get("priceLevel"),
+                "rating": p.get("rating"),
+                "user_ratings_total": p.get("userRatingCount"),
+                "types": ts,
+                "main_photo": self._get_photo_url(p.get("photos", [])),
+                "google_maps_uri": p.get("googleMapsUri"),
+                "website_uri": p.get("websiteUri"),
+                "latitude": p.get("location", {}).get("latitude"),
+                "longitude": p.get("location", {}).get("longitude"),
+                "phone_number": p.get("nationalPhoneNumber"),
+                "opening_hours": hours_info.get("weekdayDescriptions") if isinstance(hours_info, dict) else None,
+                "open_now": hours_info.get("openNow") if isinstance(hours_info, dict) else None
             })
         return formatted
 
