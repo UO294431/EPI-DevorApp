@@ -66,7 +66,7 @@ def login(identifier: str, password: str) -> tuple[Usuario, str]:
 
     try:
         user_record = fb_auth.get_user_by_email(email)
-        if not user_record.email_verified:
+        if not settings.SKIP_EMAIL_VERIFICATION and not user_record.email_verified:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Email no verificado. Por favor, revisa tu bandeja de entrada.",

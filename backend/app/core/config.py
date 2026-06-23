@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Microservicio IA (Keras)
     KERAS_API_URL: str = "http://127.0.0.1:8001/predict"
 
+    # Test helpers
+    SKIP_EMAIL_VERIFICATION: bool = False
+
     # JWT
     SECRET_KEY: str = os.getenv(
         "SECRET_KEY", "CAMBIA_ESTO_EN_PRODUCCION_usa_openssl_rand_hex_32"

@@ -15,6 +15,7 @@ COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./alembic.ini
 COPY entrypoint.sh ./entrypoint.sh
+COPY firebase-service-account.json* ./
 
 RUN poetry install --without dev
 RUN chmod +x entrypoint.sh

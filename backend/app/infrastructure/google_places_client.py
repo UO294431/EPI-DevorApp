@@ -34,10 +34,10 @@ class GooglePlacesClient:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.priceLevel,places.rating,places.userRatingCount,places.types,places.photos,places.googleMapsUri,places.websiteUri,places.regularOpeningHours,places.currentOpeningHours,places.editorialSummary,places.location,nextPageToken"
+            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.priceLevel,places.rating,places.userRatingCount,places.types,places.photos,places.googleMapsUri,places.websiteUri,places.regularOpeningHours,places.location,nextPageToken"
         }
 
-        payload = {
+        payload: Dict[str, Any] = {
             "textQuery": text_query,
             "maxResultCount": max_results,
             "languageCode": "es"
@@ -68,7 +68,7 @@ class GooglePlacesClient:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": "id,displayName,formattedAddress,nationalPhoneNumber,priceLevel,rating,userRatingCount,types,photos,googleMapsUri,websiteUri,regularOpeningHours,currentOpeningHours,editorialSummary,location"
+            "X-Goog-FieldMask": "id,displayName,formattedAddress,nationalPhoneNumber,priceLevel,rating,userRatingCount,types,photos,googleMapsUri,websiteUri,regularOpeningHours,location"
         }
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{self.details_url}{place_id}", headers=headers, timeout=10.0)
