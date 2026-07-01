@@ -29,7 +29,7 @@ epi-devorapp/
 
 ## Quick start
 
-### Docker (recommended — runs everything)
+### Docker (recommended —-- runs everything)
 
 ```bash
 docker compose up --build
