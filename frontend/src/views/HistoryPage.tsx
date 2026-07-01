@@ -139,7 +139,7 @@ const HistoryPage: React.FC = () => {
     const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
     const [ratedPlaceIds, setRatedPlaceIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [_error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const { showNotification, showConfirm } = useNotification();
 
     // Filter and Detail state
@@ -440,6 +440,9 @@ const HistoryPage: React.FC = () => {
                                             <div 
                                                 className="rating-label-with-help"
                                                 onClick={() => setActiveTooltip(activeTooltip === aspect ? null : aspect)}
+                                                onKeyDown={(e) => e.key === 'Enter' && setActiveTooltip(activeTooltip === aspect ? null : aspect)}
+                                                role="button"
+                                                tabIndex={0}
                                             >
                                                 <span className="aspect-name-premium" style={{ textTransform: 'capitalize', marginRight: '0.4rem' }}>
                                                     {aspect}
@@ -486,7 +489,7 @@ const HistoryPage: React.FC = () => {
                     <button
                         onClick={handleRatingSubmit}
                         disabled={modalLoading || Object.values(ratingVal).includes(0)}
-                        className={`btn-submit-valuation ${!Object.values(ratingVal).includes(0) ? 'active' : ''}`}
+                        className={`btn-submit-valuation ${Object.values(ratingVal).includes(0) ? '' : 'active'}`}
                     >
                         {modalLoading ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Enviar valoración'}
                     </button>
@@ -658,7 +661,7 @@ const HistoryPage: React.FC = () => {
                         />
                     </div>
                     <button
-                        className={`history-filter-btn ${statusFilter !== 'all' ? 'active' : ''}`}
+                        className={`history-filter-btn ${statusFilter === 'all' ? '' : 'active'}`}
                         onClick={cycleFilter}
                     >
                         <Filter size={16} />
@@ -670,6 +673,10 @@ const HistoryPage: React.FC = () => {
                     <div style={{ textAlign: 'center', padding: '3rem' }}>
                         <div className="loading-spinner" style={{ border: '4px solid var(--border)', borderTop: '4px solid var(--accent)', borderRadius: '50%', width: 30, height: 30, animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
                         <p style={{ color: 'var(--muted)' }}>Cargando historial...</p>
+                    </div>
+                ) : error ? (
+                    <div className="message error" style={{ textAlign: 'center', padding: '2rem', color: 'var(--error)' }}>
+                        {error}
                     </div>
                 ) : (
                     <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -688,7 +695,13 @@ const HistoryPage: React.FC = () => {
                             const isOpen = expandedGroups.has(key);
                             return (
                                 <div key={key}>
-                                    <div className="history-group-header" onClick={() => toggleGroup(key)}>
+                                    <div
+                                        className="history-group-header"
+                                        onClick={() => toggleGroup(key)}
+                                        onKeyDown={(e) => e.key === 'Enter' && toggleGroup(key)}
+                                        role="button"
+                                        tabIndex={0}
+                                    >
                                         <span className="history-group-title">{group.label}</span>
                                         <div className="history-group-meta">
                                             <span>{group.entries.length} restaurantes</span>
@@ -707,6 +720,10 @@ const HistoryPage: React.FC = () => {
                                                         key={entry.id}
                                                         className="restaurant-compact-card"
                                                         onClick={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
+                                                        onKeyDown={(e) => { if (e.key === 'Enter' && entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-label={`Ver detalles de ${entry.name}`}
                                                     >
                                                         <div style={{ position: 'absolute', top: '10px', right: '35px', zIndex: 10 }}>
                                                             <div className={`status-badge ${isRated ? 'rated' : 'unrated'}`}>

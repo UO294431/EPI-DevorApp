@@ -421,6 +421,10 @@ const HomePage: React.FC = () => {
                   <div
                     className="restaurant-compact-card"
                     onClick={() => { if (place.id) setSearchParams({ detail: place.id.toString() }); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && place.id) setSearchParams({ detail: place.id.toString() }); }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Ver detalles de ${place.name}`}
                   >
                     <div className="compact-img-box">
                       {place.main_photo ? (

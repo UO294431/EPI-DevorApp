@@ -133,7 +133,13 @@ export const valoracionesService = {
         const cached = cacheService.get<ValoracionPublica[]>(cacheKey);
         if (cached) return cached;
 
-        const response = await fetch(`${API_URL}/valoraciones/restaurante/${place_id}`, {
+        const url = `${API_URL}/valoraciones/restaurante/${place_id}`;
+        const parsedUrl = new URL(url, 'http://localhost');
+        if (!parsedUrl.pathname.startsWith('/api/valoraciones/restaurante/') && !parsedUrl.pathname.startsWith('/valoraciones/restaurante/')) {
+            throw new Error('Invalid API endpoint path');
+        }
+
+        const response = await fetch(url, {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         });

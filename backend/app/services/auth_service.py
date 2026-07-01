@@ -138,7 +138,7 @@ def request_password_reset(email: str) -> None:
     if user:
         send_password_reset_email(email)
 
-def update_profile(uid: str, email: str, data: ProfileUpdateRequest) -> Usuario:
+def update_profile(uid: str, data: ProfileUpdateRequest) -> Usuario:
     # No se requiere contraseña para actualizar el perfil
     
     # 2. Actualizar en Firestore
@@ -217,7 +217,7 @@ def update_password(uid: str, email: str, data: PasswordUpdateRequest) -> None:
         )
 
 
-def delete_account(uid: str, email: str, password: str, db: Session) -> None:
+def delete_account(uid: str, db: Session) -> None:
     # La confirmación de identidad se hace en el frontend (campo "CONFIRMAR").
     # El usuario ya está autenticado mediante cookie de sesión.
     

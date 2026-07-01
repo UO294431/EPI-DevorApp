@@ -69,7 +69,7 @@ class PredictRequest(BaseModel):
     franja: int
     candidates: List[Candidate]
 
-async def verify_api_key(x_api_key: str = Header(None)):
+def verify_api_key(x_api_key: str = Header(None)):
     if x_api_key != API_KEY_SECRET:
         raise HTTPException(status_code=403, detail="Clave de API no válida")
 
@@ -190,24 +190,24 @@ async def predict(req: PredictRequest):
 
         # 5. Matrices para Inferencia en Lote
         N = len(req.candidates)
-        X_uid  = np.full((N,), u_idx, dtype=np.int32)
-        X_rid  = np.zeros((N,), dtype=np.int32)
-        X_tags = np.zeros((N, NUM_TAGS), dtype=np.float32)
-        X_rctx = np.zeros((N, 2), dtype=np.float32)
-        X_uprof = np.tile(u_prof, (N, 1)).astype(np.float32)
-        X_ufav  = np.tile(u_fav_vector, (N, 1)).astype(np.float32)
-        X_time  = np.tile(time_ctx, (N, 1)).astype(np.float32)
+        x_uid  = np.full((N,), u_idx, dtype=np.int32)
+        x_rid  = np.zeros((N,), dtype=np.int32)
+        x_tags = np.zeros((N, NUM_TAGS), dtype=np.float32)
+        x_rctx = np.zeros((N, 2), dtype=np.float32)
+        x_uprof = np.tile(u_prof, (N, 1)).astype(np.float32)
+        x_ufav  = np.tile(u_fav_vector, (N, 1)).astype(np.float32)
+        x_time  = np.tile(time_ctx, (N, 1)).astype(np.float32)
 
         for i, cand in enumerate(req.candidates):
-            X_rid[i]  = place_mapping.get(cand.place_id, 0)
-            X_tags[i] = extract_tags_vector(cand.types)
+            x_rid[i]  = place_mapping.get(cand.place_id, 0)
+            x_tags[i] = extract_tags_vector(cand.types)
             precio_norm    = (cand.price_level or 1) / 3.0
             estrellas_norm = ((cand.rating or 3.5) - 1.0) / 4.0
-            X_rctx[i] = [precio_norm, estrellas_norm]
+            x_rctx[i] = [precio_norm, estrellas_norm]
 
         # 6. Inferencia
         print(f"📊 Prediciendo para usuario {req.user_id} (idx={u_idx}), {N} candidatos, NUM_TAGS={NUM_TAGS}")
-        preds = model.predict([X_uid, X_rid, X_tags, X_rctx, X_uprof, X_ufav, X_time], verbose=0)
+        preds = model.predict([x_uid, x_rid, x_tags, x_rctx, x_uprof, x_ufav, x_time], verbose=0)
 
         # 7. Formatear salida
         results = []

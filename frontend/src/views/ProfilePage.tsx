@@ -39,7 +39,7 @@ const ProfilePage: React.FC = () => {
         const data = await authService.getMe();
         setUser(data);
         localStorage.setItem('devorapp_user_cache', JSON.stringify(data));
-        window.dispatchEvent(new CustomEvent('userUpdated', { detail: data }));
+        globalThis.dispatchEvent(new CustomEvent('userUpdated', { detail: data }));
         setFormData(prev => ({
           ...prev,
           nombre: data.nombre || '',
@@ -48,6 +48,7 @@ const ProfilePage: React.FC = () => {
           ubicacion: data.ubicacion || ''
         }));
       } catch (err) {
+        console.error('Error al cargar datos del perfil:', err);
         showNotification('Error al cargar datos del perfil', 'error');
         navigate('/home');
       } finally {
@@ -105,7 +106,7 @@ const ProfilePage: React.FC = () => {
         });
         setUser(result.user);
         localStorage.setItem('devorapp_user_cache', JSON.stringify(result.user));
-        window.dispatchEvent(new CustomEvent('userUpdated', { detail: result.user }));
+        globalThis.dispatchEvent(new CustomEvent('userUpdated', { detail: result.user }));
         showNotification('Perfil actualizado correctamente', 'success');
       }
       else if (editSection === 'email') {
@@ -279,8 +280,9 @@ const ProfilePage: React.FC = () => {
               {editSection === 'location' ? (
                 <form onSubmit={handleSave} className="auth-form" style={{ marginTop: '0.5rem' }}>
                   <div className="form-group">
-                    <label className="form-label">Ubicación</label>
+                    <label className="form-label" htmlFor="profile-location-input">Ubicación</label>
                     <Autocomplete
+                      id="profile-location-input"
                       apiKey={import.meta.env.VITE_GOOGLE_API_KEY}
                       onPlaceSelected={(place) => {
                         if (place?.formatted_address) {
@@ -502,31 +504,7 @@ const ProfilePage: React.FC = () => {
                   <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--error)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Zona de Peligro</span>
                 </div>
 
-                {editSection !== 'delete' ? (
-                  <>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, textAlign: 'center' }}>
-                      Al eliminar tu cuenta, todos tus favoritos, historial y datos se borrarán de forma permanente.
-                    </p>
-                    <button
-                      className="btn-primary"
-                      onClick={() => handleEdit('delete')}
-                      style={{
-                        background: 'transparent',
-                        border: '2px solid var(--error)',
-                        color: 'var(--error)',
-                        width: '100%',
-                        maxWidth: '300px',
-                        padding: '12px',
-                        fontSize: '1rem',
-                        fontWeight: 700,
-                        marginTop: '0.5rem',
-                        boxShadow: 'none'
-                      }}
-                    >
-                      Eliminar cuenta permanentemente
-                    </button>
-                  </>
-                ) : (
+                {editSection === 'delete' ? (
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     if (deleteConfirmText !== 'CONFIRMAR') {
@@ -572,6 +550,30 @@ const ProfilePage: React.FC = () => {
                       </button>
                     </div>
                   </form>
+                ) : (
+                  <>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, textAlign: 'center' }}>
+                      Al eliminar tu cuenta, todos tus favoritos, historial y datos se borrarán de forma permanente.
+                    </p>
+                    <button
+                      className="btn-primary"
+                      onClick={() => handleEdit('delete')}
+                      style={{
+                        background: 'transparent',
+                        border: '2px solid var(--error)',
+                        color: 'var(--error)',
+                        width: '100%',
+                        maxWidth: '300px',
+                        padding: '12px',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        marginTop: '0.5rem',
+                        boxShadow: 'none'
+                      }}
+                    >
+                      Eliminar cuenta permanentemente
+                    </button>
+                  </>
                 )}
               </div>
             </div>

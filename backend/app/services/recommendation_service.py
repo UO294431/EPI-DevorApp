@@ -90,52 +90,40 @@ class RecommendationService:
 
         return {"results": formatted, "next_page_token": search_res["next_page_token"]}
 
-    async def _sort_recommended(self, formatted: list, user_id: str, search_lat=None, search_lng=None):
-        # ── PASO 1: Cargar datos del usuario (Capa DB) ────────────────────────
-        db = SessionLocal()
-        try:
-            res = db.execute(text("SELECT r.place_id, AVG((v.calidad+v.precio+v.higiene+v.trato)/4.0), AVG(v.precio) FROM valoraciones v JOIN restaurantes r ON v.restaurante_id = r.id WHERE v.user_id = :uid GROUP BY r.place_id"), {"uid": user_id}).fetchall()
-            user_direct_scores = {row[0]: float(row[1]) for row in res}
-            user_direct_price = {row[0]: float(row[2]) for row in res}
-            user_favs = {row[0] for row in db.execute(text("SELECT r.place_id FROM favoritos f JOIN listas_favoritos l ON f.lista_id = l.id JOIN restaurantes r ON f.restaurante_id = r.id WHERE l.user_id = :uid"), {"uid": user_id}).fetchall()}
-            
-            res_cf = db.execute(text("SELECT v.user_id, r.place_id, AVG((v.calidad+v.precio+v.higiene+v.trato)/4.0) FROM valoraciones v JOIN restaurantes r ON v.restaurante_id = r.id WHERE v.user_id != :uid GROUP BY v.user_id, r.place_id"), {"uid": user_id}).fetchall()
-            other_users = {}
-            for row in res_cf:
-                if row[0] not in other_users: other_users[row[0]] = {}
-                other_users[row[0]][row[1]] = float(row[2])
-        finally: db.close()
+    def _fetch_user_db_features(self, db, user_id: str):
+        res = db.execute(text("SELECT r.place_id, AVG((v.calidad+v.precio+v.higiene+v.trato)/4.0), AVG(v.precio) FROM valoraciones v JOIN restaurantes r ON v.restaurante_id = r.id WHERE v.user_id = :uid GROUP BY r.place_id"), {"uid": user_id}).fetchall()
+        user_direct_scores = {row[0]: float(row[1]) for row in res}
+        user_direct_price = {row[0]: float(row[2]) for row in res}
+        user_favs = {row[0] for row in db.execute(text("SELECT r.place_id FROM favoritos f JOIN listas_favoritos l ON f.lista_id = l.id JOIN restaurantes r ON f.restaurante_id = r.id WHERE l.user_id = :uid"), {"uid": user_id}).fetchall()}
+        
+        res_cf = db.execute(text("SELECT v.user_id, r.place_id, AVG((v.calidad+v.precio+v.higiene+v.trato)/4.0) FROM valoraciones v JOIN restaurantes r ON v.restaurante_id = r.id WHERE v.user_id != :uid GROUP BY v.user_id, r.place_id"), {"uid": user_id}).fetchall()
+        other_users = {}
+        for row in res_cf:
+            if row[0] not in other_users:
+                other_users[row[0]] = {}
+            other_users[row[0]][row[1]] = float(row[2])
+        return user_direct_scores, user_direct_price, user_favs, other_users
 
-        # ── PASO 2: Obtener Info de Keras/Google (Delegada a Infraestructura) ─
+    async def _fetch_missing_place_infos(self, user_direct_scores):
         all_info = {}
-        if user_direct_scores:
-            all_info = await keras_api_client.get_restaurants_info(list(user_direct_scores.keys()))
+        if not user_direct_scores:
+            return all_info
+        all_info = await keras_api_client.get_restaurants_info(list(user_direct_scores.keys()))
+        missing_ids = [pid for pid in user_direct_scores if pid not in all_info]
+        if missing_ids:
+            async def _f(pid):
+                d = await google_places_client.get_place_details(pid)
+                if d:
+                    p_map = {"PRICE_LEVEL_FREE":0, "PRICE_LEVEL_INEXPENSIVE":1, "PRICE_LEVEL_MODERATE":2, "PRICE_LEVEL_EXPENSIVE":3, "PRICE_LEVEL_VERY_EXPENSIVE":4}
+                    return pid, {"types": d.get("types", []), "price_level": p_map.get(d.get("priceLevel"), 2)}
+                return pid, {"types": [], "price_level": 2}
             
-            missing_ids = [pid for pid in user_direct_scores if pid not in all_info]
-            if missing_ids:
-                async def _f(pid):
-                    d = await google_places_client.get_place_details(pid)
-                    if d:
-                        p_map = {"PRICE_LEVEL_FREE":0, "PRICE_LEVEL_INEXPENSIVE":1, "PRICE_LEVEL_MODERATE":2, "PRICE_LEVEL_EXPENSIVE":3, "PRICE_LEVEL_VERY_EXPENSIVE":4}
-                        return pid, {"types": d.get("types", []), "price_level": p_map.get(d.get("priceLevel"), 2)}
-                    return pid, {"types": [], "price_level": 2}
-                
-                results = await asyncio.gather(*[_f(pid) for pid in missing_ids])
-                for pid, info in results: all_info[pid] = info
+            results = await asyncio.gather(*[_f(pid) for pid in missing_ids])
+            for pid, info in results:
+                all_info[pid] = info
+        return all_info
 
-        # ── PASO 3: Construir perfiles ────────────────────────────────────────
-        type_scores_accum = {}; high_price_ratings = []
-        for pid, score in user_direct_scores.items():
-            info = all_info.get(pid, {})
-            for t in info.get("types", []):
-                if t not in GENERIC_TYPES: type_scores_accum.setdefault(t, []).append(score)
-            if info.get("price_level", 2) >= 3: high_price_ratings.append(user_direct_price.get(pid, 3.0))
-
-        user_type_profile = {t: sum(sc)/len(sc) for t, sc in type_scores_accum.items()}
-        avg_price_at_expensive = sum(high_price_ratings)/len(high_price_ratings) if high_price_ratings else 3.5
-        is_price_sensitive = avg_price_at_expensive < 3.0
-
-        # ── PASO 4: Collaborative Filtering ──────────────────────────────────
+    def _compute_collaborative_filtering(self, user_direct_scores, other_users):
         user_similarities = {}
         for ouid, rts in other_users.items():
             shared = set(user_direct_scores.keys()) & set(rts.keys())
@@ -146,10 +134,13 @@ class RecommendationService:
                     num = sum((x-mc)*(y-mo) for x,y in zip(c,o))
                     den = (sum((x-mc)**2 for x in c) * sum((y-mo)**2 for y in o))**0.5
                     sim = num/den if den > 0 else 0.0
-                else: sim = 0.4 if abs(c[0]-o[0]) < 0.5 else 0.0
-                if sim > 0.15: user_similarities[ouid] = sim
+                else:
+                    sim = 0.4 if abs(c[0]-o[0]) < 0.5 else 0.0
+                if sim > 0.15:
+                    user_similarities[ouid] = sim
+        return user_similarities
 
-        # ── PASO 5: Keras Scores (Delegada a Infraestructura) ─────────────────
+    async def _fetch_keras_normalized_scores(self, user_id, user_direct_scores, user_favs, formatted):
         p_map_k = {"PRICE_LEVEL_FREE":0, "PRICE_LEVEL_INEXPENSIVE":0, "PRICE_LEVEL_MODERATE":1, "PRICE_LEVEL_EXPENSIVE":2, "PRICE_LEVEL_VERY_EXPENSIVE":3}
         cands = [{"place_id":r["id"], "price_level":p_map_k.get(r.get("price_level"),1) if isinstance(r.get("price_level"),str) else (r.get("price_level") or 1), "rating":r.get("rating",3.5), "types":r.get("types",[])} for r in formatted]
         
@@ -164,12 +155,47 @@ class RecommendationService:
 
         keras_norm = {}
         if keras_raw:
-            mi, ma = min(keras_raw.values()), max(keras_raw.values()); rng = ma - mi
+            mi, ma = min(keras_raw.values()), max(keras_raw.values())
+            rng = ma - mi
             keras_norm = {pid: 2.5 + 2.5 * (sc-mi)/rng if rng > 0.01 else 3.5 for pid, sc in keras_raw.items()}
+        return keras_norm
 
-        # ── PASO 6: Scoring Final ─────────────────────────────────────────────
+    async def _sort_recommended(self, formatted: list, user_id: str, search_lat=None, search_lng=None):
+        # ── PASO 1: Cargar datos del usuario (Capa DB)
+        db = SessionLocal()
+        try:
+            user_direct_scores, user_direct_price, user_favs, other_users = self._fetch_user_db_features(db, user_id)
+        finally:
+            db.close()
+
+        # ── PASO 2: Obtener Info de Keras/Google
+        all_info = await self._fetch_missing_place_infos(user_direct_scores)
+
+        # ── PASO 3: Construir perfiles
+        type_scores_accum = {}
+        high_price_ratings = []
+        for pid, score in user_direct_scores.items():
+            info = all_info.get(pid, {})
+            for t in info.get("types", []):
+                if t not in GENERIC_TYPES:
+                    type_scores_accum.setdefault(t, []).append(score)
+            if info.get("price_level", 2) >= 3:
+                high_price_ratings.append(user_direct_price.get(pid, 3.0))
+
+        user_type_profile = {t: sum(sc)/len(sc) for t, sc in type_scores_accum.items()}
+        avg_price_at_expensive = sum(high_price_ratings)/len(high_price_ratings) if high_price_ratings else 3.5
+        is_price_sensitive = avg_price_at_expensive < 3.0
+
+        # ── PASO 4: Collaborative Filtering
+        user_similarities = self._compute_collaborative_filtering(user_direct_scores, other_users)
+
+        # ── PASO 5: Keras Scores
+        keras_norm = await self._fetch_keras_normalized_scores(user_id, user_direct_scores, user_favs, formatted)
+
+        # ── PASO 6: Scoring Final
         for r in formatted:
-            pid = r["id"]; r_types = set(r.get("types") or []) - GENERIC_TYPES
+            pid = r["id"]
+            r_types = set(r.get("types") or []) - GENERIC_TYPES
             google_r, keras_s = r.get("rating") or 3.5, keras_norm.get(pid, 3.5)
 
             if pid in user_direct_scores:
@@ -180,20 +206,27 @@ class RecommendationService:
                 type_matches = [user_type_profile[t] for t in r_types if t in user_type_profile]
                 if type_matches:
                     t_avg = sum(type_matches)/len(type_matches)
-                    if t_avg < 2.5: t_avg *= 0.8
-                    signals.append(t_avg); weights.append(0.35)
+                    if t_avg < 2.5:
+                        t_avg *= 0.8
+                    signals.append(t_avg)
+                    weights.append(0.35)
                 
                 cf_p = [(sim, other_users[ouid][pid]) for ouid, sim in user_similarities.items() if pid in other_users.get(ouid, {})]
-                if cf_p: signals.append(sum(s*sc for s,sc in cf_p)/sum(s for s,_ in cf_p)); weights.append(0.25)
+                if cf_p:
+                    signals.append(sum(s*sc for s,sc in cf_p)/sum(s for s,_ in cf_p))
+                    weights.append(0.25)
                 
                 if search_lat and r.get("latitude"):
-                    signals.append(self._dist_to_score(self._haversine(search_lat, search_lng, r["latitude"], r["longitude"]))); weights.append(0.05)
+                    signals.append(self._dist_to_score(self._haversine(search_lat, search_lng, r["latitude"], r["longitude"])))
+                    weights.append(0.05)
 
                 final = sum(s*(w/sum(weights)) for s,w in zip(signals, weights))
                 p_map_i = {"PRICE_LEVEL_FREE":0, "PRICE_LEVEL_INEXPENSIVE":1, "PRICE_LEVEL_MODERATE":2, "PRICE_LEVEL_EXPENSIVE":3, "PRICE_LEVEL_VERY_EXPENSIVE":4}
                 p_int = p_map_i.get(r.get("price_level"), 2) if isinstance(r.get("price_level"), str) else (r.get("price_level") or 2)
-                if is_price_sensitive and p_int >= 3: final *= 0.85
-                if pid in user_favs: final = min(5.0, final + 0.25)
+                if is_price_sensitive and p_int >= 3:
+                    final *= 0.85
+                if pid in user_favs:
+                    final = min(5.0, final + 0.25)
                 source = f"hybrid({len(type_matches)}types)"
 
             r["hybrid_score"], r["score_source"] = round(final, 4), source

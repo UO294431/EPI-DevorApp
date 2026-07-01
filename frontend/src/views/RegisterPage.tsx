@@ -70,8 +70,9 @@ const RegisterPage: React.FC = () => {
         setFieldErrors(errs);
         return;
       }
-    } catch {
+    } catch (err) {
       // Si la comprobación falla por red, dejamos pasar (el backend lo filtrará)
+      console.debug('Pre-check network error, continuing to next step:', err);
     } finally {
       setCheckLoading(false);
     }
@@ -99,7 +100,8 @@ const RegisterPage: React.FC = () => {
             setFieldValue('ubicacion', address);
             setGpsLabel(address);
           }
-        } catch {
+        } catch (err) {
+          console.debug('Reverse geocode failed:', err);
           setStepError('No se pudo obtener la dirección. Intenta buscarla manualmente.');
         } finally {
           setGpsLoading(false);
@@ -120,8 +122,8 @@ const RegisterPage: React.FC = () => {
     let s = 0;
     if (p.length >= 8) s++;
     if (/[A-Z]/.test(p)) s++;
-    if (/[0-9]/.test(p)) s++;
-    if (/[^A-Za-z0-9]/.test(p)) s++;
+    if (/\d/.test(p)) s++;
+    if (/[^A-Za-z\d]/.test(p)) s++;
     return s; // 0-4
   })();
   const pwStrengthLabel = ['', 'Débil', 'Regular', 'Buena', 'Fuerte'][pwStrength];

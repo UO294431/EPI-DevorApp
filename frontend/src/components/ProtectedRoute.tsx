@@ -15,6 +15,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
                 await authService.getMe();
                 setIsAuthenticated(true);
             } catch (error) {
+                // Session not found or expired — redirect to login
+                console.debug('Auth check failed:', error);
                 setIsAuthenticated(false);
             }
         };

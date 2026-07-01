@@ -23,7 +23,7 @@ def login(login_data: LoginRequest, response: Response):
         value=access_token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -85,7 +85,7 @@ def login_with_google(data: GoogleLoginRequest, response: Response):
         value=access_token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
     
@@ -119,7 +119,7 @@ def register_with_google(data: GoogleRegisterRequest, db: Annotated[Session, Dep
         value=access_token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -187,7 +187,7 @@ def update_profile(
     data: ProfileUpdateRequest,
     current_user: Annotated[Usuario, Depends(get_current_user)]
 ):
-    user = auth_service.update_profile(current_user.uid, current_user.email, data)
+    user = auth_service.update_profile(current_user.uid, data)
     return {
         "message": "Perfil actualizado correctamente",
         "user": {
@@ -223,7 +223,7 @@ def delete_account(
     db: Annotated[Session, Depends(get_db)],
     response: Response
 ):
-    auth_service.delete_account(current_user.uid, current_user.email, password, db)
+    auth_service.delete_account(current_user.uid, db)
     response.delete_cookie(key="access_token")
     return {"message": "Cuenta eliminada permanentemente. Lamentamos verte partir."}
 

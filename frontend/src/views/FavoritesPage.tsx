@@ -310,7 +310,7 @@ const FavoritesPage: React.FC = () => {
     useEffect(() => {
         const listIdStr = searchParams.get('list');
         const detailId = searchParams.get('detail');
-        const listId = listIdStr ? parseInt(listIdStr, 10) : null;
+        const listId = listIdStr ? Number.parseInt(listIdStr, 10) : null;
 
         if (listId !== null) {
             const listObj = lists.find(l => l.id === listId);
@@ -326,6 +326,7 @@ const FavoritesPage: React.FC = () => {
                                 const data = await favoritosService.getListaDetalle(listId);
                                 setFavoritos(data.restaurantes);
                             } catch (err) {
+                                console.error('Error al cargar la lista:', err);
                                 alert('Error al cargar la lista');
                                 setSearchParams({});
                             } finally {
@@ -463,7 +464,7 @@ const FavoritesPage: React.FC = () => {
                     )}
 
                     <main className="home-body" style={{ padding: '0 var(--space-5) var(--space-8)' }}>
-                        {!selectedList ? (
+                        {selectedList === null ? (
                             // ── OVERVIEW VIEW (GRID OF LISTS) ──
                             <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                 {/* Header */}
@@ -525,6 +526,10 @@ const FavoritesPage: React.FC = () => {
                                                         key={list.id}
                                                         className="fav-list-card"
                                                         onClick={() => setSearchParams({ list: list.id.toString() })}
+                                                        onKeyDown={(e) => e.key === 'Enter' && setSearchParams({ list: list.id.toString() })}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-label={`Ver lista ${list.nombre}`}
                                                     >
                                                         <div className="fav-icon-box" style={{ background: getIconColor(list.icono || 'Heart') }}>
                                                             {renderIcon(list.icono || 'Heart', 22)}
@@ -589,6 +594,10 @@ const FavoritesPage: React.FC = () => {
                                                     <div
                                                         className="restaurant-compact-card"
                                                         onClick={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
+                                                        onKeyDown={(e) => e.key === 'Enter' && setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-label={`Ver detalles de ${r.name}`}
                                                     >
                                                         <div className="compact-img-box">
                                                             {r.main_photo ? (

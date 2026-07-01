@@ -180,8 +180,12 @@ const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
                                         <div key={val.id} style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
                                             <div
                                                 onClick={() => setExpandedEntryId(isExpanded ? null : val.id)}
+                                                onKeyDown={(e) => e.key === 'Enter' && setExpandedEntryId(isExpanded ? null : val.id)}
+                                                role="button"
+                                                tabIndex={0}
                                                 className="restaurant-compact-card"
                                                 style={{ border: 'none', borderRadius: 0 }}
+                                                aria-label={`Ver valoración de ${restaurant.name || 'Restaurante'}`}
                                             >
                                                 <div className="compact-img-box">
                                                     {restaurant.main_photo ? (
@@ -301,6 +305,9 @@ const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
                                                 <div 
                                                     className="rating-label-with-help"
                                                     onClick={() => setActiveTooltip(activeTooltip === aspect ? null : aspect)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && setActiveTooltip(activeTooltip === aspect ? null : aspect)}
+                                                    role="button"
+                                                    tabIndex={0}
                                                 >
                                                     <span className="aspect-name-premium" style={{ textTransform: 'capitalize', marginRight: '0.4rem' }}>
                                                         {aspect}
@@ -347,7 +354,7 @@ const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
                         <button
                             onClick={handleRatingSubmit}
                             disabled={modalLoading || Object.values(ratingVal).includes(0)}
-                            className={`btn-submit-valuation ${!Object.values(ratingVal).includes(0) ? 'active' : ''}`}
+                            className={`btn-submit-valuation ${Object.values(ratingVal).includes(0) ? '' : 'active'}`}
                         >
                             {modalLoading ? 'Guardando...' : 'Enviar valoración'}
                         </button>

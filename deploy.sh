@@ -51,7 +51,11 @@ step() { echo -e "\n${CYAN}══ $* ══${NC}"; }
 ok()   { echo -e "  ${GREEN}✔ $*${NC}"; }
 warn() { echo -e "  ${YELLOW}⚠ $*${NC}"; }
 fail() { echo -e "\n${RED}  ✖ $*${NC}\n"; exit 1; }
-need() { command -v "$1" &>/dev/null || fail "$1 not found. $2"; }
+need() {
+    local cmd="$1"
+    local hint="$2"
+    command -v "$cmd" &>/dev/null || fail "$cmd not found. $hint"
+}
 run()  { local d="$1"; shift; "$@" || fail "$d failed"; }
 
 # ─── Stop ─────────────────────────────────────────────────────────────────────
@@ -134,9 +138,9 @@ if $RUN_BACKEND; then
     step "Installing keras-api dependencies (pip)"
     cd "$ROOT/keras-api"
     PYTHON_CMD="python3"
-    if [ -f "venv/bin/python" ]; then
+    if [[ -f "venv/bin/python" ]]; then
         PYTHON_CMD="./venv/bin/python"
-    elif [ -f "venv/Scripts/python" ]; then
+    elif [[ -f "venv/Scripts/python" ]]; then
         PYTHON_CMD="./venv/Scripts/python"
     fi
     run "pip install" $PYTHON_CMD -m pip install -r requirements.txt
@@ -181,6 +185,7 @@ if [[ "$MODE" == "docker" ]]; then
         backend)  SERVICES="db backend keras-api" ;;
         frontend) SERVICES="frontend" ;;
         # all: no explicit service list → starts everything
+        *) SERVICES="" ;;
     esac
 
     step "Starting with Docker Compose$(if $DEV; then echo ' [DEV mode]'; fi)"
@@ -202,9 +207,9 @@ else
         step "Starting keras-api — FastAPI (http://localhost:8001)"
         cd "$ROOT/keras-api"
         PYTHON_CMD="python3"
-        if [ -f "venv/bin/python" ]; then
+        if [[ -f "venv/bin/python" ]]; then
             PYTHON_CMD="./venv/bin/python"
-        elif [ -f "venv/Scripts/python" ]; then
+        elif [[ -f "venv/Scripts/python" ]]; then
             PYTHON_CMD="./venv/Scripts/python"
         fi
         $PYTHON_CMD -m uvicorn main:app --reload --port 8001 &

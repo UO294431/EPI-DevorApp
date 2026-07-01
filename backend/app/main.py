@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.presentation.routers import auth_router, recommendation_router, historial_router, favoritos_router, mas_tarde_router, valoraciones_router
 from app.infrastructure.firebase.firebase_admin import get_firebase_app
+import os
 
 # Inicializar Firebase antes de aceptar peticiones
 get_firebase_app()
@@ -13,9 +14,18 @@ app = FastAPI(
 )
 
 # Necesario para que el frontend (React) pueda hacer peticiones al backend
+_extra_origin = os.getenv("EXTRA_ORIGIN", "")
+_allowed_origins = [
+    "http://localhost:5173",
+    "https://localhost:5173",
+    "https://127.0.0.1:5173",
+]
+if _extra_origin:
+    _allowed_origins.append(_extra_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://192.168.1.68:5173", "https://localhost:5173", "https://192.168.1.68:5173", "https://127.0.0.1:5173"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

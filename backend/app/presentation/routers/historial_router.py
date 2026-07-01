@@ -64,7 +64,7 @@ async def get_historial(
 @router.post("/populares")
 async def get_popular_historial(
     data: PopularPlacesRequest,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Devuelve los restaurantes más populares globalmente en base al historial.

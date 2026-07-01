@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
-  Menu, X, Home, Star, Heart, Clock, MessageSquare, LogOut,
-  Moon, Sun, Type, Bookmark
+  Menu, X, Home, Heart, Clock, MessageSquare, LogOut,
+  Moon, Sun, Type, Bookmark, Search
 } from 'lucide-react';
 import { authService } from '../models/api/authService';
 import { useLogout } from '../controllers/hooks/useLogout';
@@ -46,10 +46,10 @@ const SideMenu: React.FC = () => {
 
   // Aplicar tamaño de letra real al documento
   useEffect(() => {
-    if (fontSize !== 'M') {
-      document.documentElement.setAttribute('data-font-size', fontSize);
-    } else {
+    if (fontSize === 'M') {
       document.documentElement.removeAttribute('data-font-size');
+    } else {
+      document.documentElement.setAttribute('data-font-size', fontSize);
     }
     localStorage.setItem('devorapp_fontsize', fontSize);
   }, [fontSize]);
@@ -69,8 +69,8 @@ const SideMenu: React.FC = () => {
     const handleUserUpdate = (e: any) => {
       setUser(e.detail);
     };
-    window.addEventListener('userUpdated', handleUserUpdate);
-    return () => window.removeEventListener('userUpdated', handleUserUpdate);
+    globalThis.addEventListener('userUpdated', handleUserUpdate);
+    return () => globalThis.removeEventListener('userUpdated', handleUserUpdate);
   }, []);
 
   const closeMenu = () => setIsOpen(false);
@@ -98,7 +98,14 @@ const SideMenu: React.FC = () => {
          </div>
 
          {user && (
-           <div className="sidemenu-user" onClick={() => goTo('/profile')} style={{ cursor: 'pointer' }}>
+           <div
+             className="sidemenu-user"
+             onClick={() => goTo('/profile')}
+             onKeyDown={(e) => e.key === 'Enter' && goTo('/profile')}
+             role="button"
+             tabIndex={0}
+             style={{ cursor: 'pointer' }}
+           >
              <div className="sidemenu-avatar">
                {getInitials(user.nombre, user.username)}
              </div>
@@ -116,7 +123,7 @@ const SideMenu: React.FC = () => {
              <Home size={18} /> Inicio
            </button>
            <button className={`sidemenu-item ${location.pathname==='/recommend-restaurants'?'active':''}`} onClick={()=>goTo('/recommend-restaurants')} style={{ '--idx': 1 } as React.CSSProperties}>
-             <Star size={18} /> Recomendados
+             <Search size={18} /> Buscador
            </button>
            <button className={`sidemenu-item ${location.pathname==='/favorites'?'active':''}`} onClick={()=>goTo('/favorites')} style={{ '--idx': 2 } as React.CSSProperties}>
              <Heart size={18} /> Favoritos

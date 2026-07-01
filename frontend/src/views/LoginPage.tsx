@@ -336,15 +336,23 @@ const LoginPage: React.FC = () => {
       {/* Modal para nuevo nombre de usuario */}
       {showUsernameModal && (
         <div className="sidemenu-overlay open" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="sidemenu-backdrop" onClick={() => setShowUsernameModal(false)} />
+          <div
+            className="sidemenu-backdrop"
+            onClick={() => setShowUsernameModal(false)}
+            onKeyDown={(e) => e.key === 'Escape' && setShowUsernameModal(false)}
+            role="button"
+            tabIndex={0}
+            aria-label="Cerrar modal"
+          />
           <div className="auth-content" style={{ position: 'relative', zIndex: 10000, background: 'var(--bg)', padding: '2rem', borderRadius: '1rem', width: '90%', maxWidth: '400px' }}>
             <h2>Elige tu nombre de usuario</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
               Ya casi terminamos. Solo necesitas elegir un nombre de usuario y tu ubicación preferida para completar tu registro con Google.
             </p>
             <div className="form-group">
-              <label className="form-label">Nombre de usuario <span style={{color:'var(--error)'}}>*</span></label>
+              <label className="form-label" htmlFor="modal-username-input">Nombre de usuario <span style={{color:'var(--error)'}}>*</span></label>
               <input
+                id="modal-username-input"
                 type="text"
                 className="form-input"
                 placeholder="@usuario"
@@ -353,7 +361,7 @@ const LoginPage: React.FC = () => {
               />
             </div>
             <div className="form-group" style={{ marginTop: '0.75rem' }}>
-              <label className="form-label">Ubicación preferida <span style={{color:'var(--error)'}}>*</span></label>
+              <label className="form-label" htmlFor="modal-ubicacion-input">Ubicación preferida <span style={{color:'var(--error)'}}>*</span></label>
               <Autocomplete
                 apiKey={import.meta.env.VITE_GOOGLE_API_KEY}
                 onPlaceSelected={(place) => {

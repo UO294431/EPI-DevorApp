@@ -83,7 +83,14 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       {/* Confirm Modal */}
       {confirm.open && (
-        <div className="modal-overlay" onClick={() => handleConfirm(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => handleConfirm(false)}
+          onKeyDown={(e) => e.key === 'Escape' && handleConfirm(false)}
+          role="button"
+          tabIndex={0}
+          aria-label="Cerrar modal"
+        >
           <div className="modal-card" onClick={e => e.stopPropagation()}>
             <div className="modal-body">
               <div className="modal-title">{confirm.title}</div>

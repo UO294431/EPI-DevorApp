@@ -70,7 +70,7 @@ const RestaurantRecommendationPage: React.FC = () => {
     const [nextPageToken, setNextPageToken] = useState<string | null>(null);
     const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
-    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<any | null>(null);
+    const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<any>(null);
 
     // Sync selected entry with URL parameter 'detail'
     useEffect(() => {
@@ -234,6 +234,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                 const resenas = await valoracionesService.obtenerResenasRestaurante(placeId);
                 setResenasPorRestaurante(prev => ({ ...prev, [placeId]: resenas }));
             } catch (err) {
+                console.error('Error fetching reviews:', err);
                 setResenasPorRestaurante(prev => ({ ...prev, [placeId]: [] }));
             } finally {
                 setLoadingResenas(prev => ({ ...prev, [placeId]: false }));
@@ -256,7 +257,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                     ? {
                         ...r,
                         ha_dado_me_gusta: !yaDabaLike,
-                        me_gustas: !yaDabaLike ? r.me_gustas + 1 : Math.max(0, r.me_gustas - 1)
+                        me_gustas: yaDabaLike ? Math.max(0, r.me_gustas - 1) : r.me_gustas + 1
                     }
                     : r
             )
@@ -295,6 +296,10 @@ const RestaurantRecommendationPage: React.FC = () => {
             if (ubicacion) {
                 const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
                 const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(ubicacion)}&key=${apiKey}`;
+                const parsedUrl = new URL(url);
+                if (parsedUrl.hostname !== 'maps.googleapis.com') {
+                    throw new Error('Invalid geocoding service domain');
+                }
 
                 const response = await fetch(url);
                 const data = await response.json();
@@ -897,6 +902,9 @@ const RestaurantRecommendationPage: React.FC = () => {
                                             {filteredTags.map(tag => (
                                                 <div key={tag.id}
                                                     onClick={() => handleAddTag(tag)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleAddTag(tag)}
+                                                    role="button"
+                                                    tabIndex={0}
                                                     style={{ padding: '0.8rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
                                                 >
                                                     <div style={{ fontWeight: 500, fontSize: 'var(--font-sm)', color: 'var(--text)' }}>{tag.label}</div>
@@ -1120,7 +1128,10 @@ const RestaurantRecommendationPage: React.FC = () => {
                             {results.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((place: any, index: number) => (
                                 <div key={place.id}
                                     className={`suggestion-card ${index === 0 && currentPage === 1 ? 'best-match' : ''}`}
-                                    onClick={() => handleExpandRestaurant(place)}>
+                                    onClick={() => handleExpandRestaurant(place)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleExpandRestaurant(place)}
+                                    role="button"
+                                    tabIndex={0}>
 
                                     {index === 0 && currentPage === 1 && (
                                         <div className="best-match-badge">

@@ -131,7 +131,13 @@ const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
 
                 {/* Opening Hours Section */}
                 <div className="detail-section">
-                    <div className="detail-section-header" onClick={() => setHoursExpanded(!hoursExpanded)}>
+                    <div
+                        className="detail-section-header"
+                        onClick={() => setHoursExpanded(!hoursExpanded)}
+                        onKeyDown={(e) => e.key === 'Enter' && setHoursExpanded(!hoursExpanded)}
+                        role="button"
+                        tabIndex={0}
+                    >
                         <div className="detail-section-title">
                             <Clock size={18} /> Horario de apertura
                         </div>
