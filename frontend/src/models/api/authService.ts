@@ -1,7 +1,7 @@
 import type { LoginResponse, RegisterResponse } from '../types/auth';
 import { cacheService } from './cacheService';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 
 export const authService = {
     login: async (identifier: string, password: string): Promise<LoginResponse> => {

@@ -38,7 +38,7 @@ def test_register_invalid_email(dummy_register_data):
     assert "formato válido" in exc_info.value.detail
 
 def test_register_weak_password(dummy_register_data):
-    dummy_register_data.password = "weak"
+    dummy_register_data.password = "weak"  # noqa: S106 - test data, not a real credential
     with pytest.raises(HTTPException) as exc_info:
         register(dummy_register_data)
     assert exc_info.value.status_code == 400

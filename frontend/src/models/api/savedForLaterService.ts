@@ -1,6 +1,6 @@
 import { cacheService } from './cacheService';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 
 export interface SavedForLaterEntry {
     id: string; // En el frontend se tratará como string aunque venga como int

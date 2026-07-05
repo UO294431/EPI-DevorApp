@@ -49,7 +49,7 @@ const SideMenu: React.FC = () => {
     if (fontSize === 'M') {
       document.documentElement.removeAttribute('data-font-size');
     } else {
-      document.documentElement.setAttribute('data-font-size', fontSize);
+      document.documentElement.dataset.fontSize = fontSize;
     }
     localStorage.setItem('devorapp_fontsize', fontSize);
   }, [fontSize]);
@@ -98,13 +98,11 @@ const SideMenu: React.FC = () => {
          </div>
 
          {user && (
-           <div
+           <button
              className="sidemenu-user"
              onClick={() => goTo('/profile')}
              onKeyDown={(e) => e.key === 'Enter' && goTo('/profile')}
-             role="button"
-             tabIndex={0}
-             style={{ cursor: 'pointer' }}
+             style={{ cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: 0 }}
            >
              <div className="sidemenu-avatar">
                {getInitials(user.nombre, user.username)}
@@ -115,7 +113,7 @@ const SideMenu: React.FC = () => {
                </span>
                <span className="sidemenu-user-email">{user.email}</span>
              </div>
-           </div>
+           </button>
          )}
 
          <nav className="sidemenu-nav">

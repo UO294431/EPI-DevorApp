@@ -14,11 +14,11 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     GOOGLE_CLIENT_ID: str = ""
 
-    # PostgreSQL (SQLAlchemy)
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/tfg_db"
+    # PostgreSQL (SQLAlchemy) - Override via DATABASE_URL env var
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres@localhost:5432/tfg_db")
 
     # Microservicio IA (Keras)
-    KERAS_API_URL: str = "http://127.0.0.1:8001/predict"
+    KERAS_API_URL: str = os.getenv("KERAS_API_URL", "http://keras-api:8001/predict")
     KERAS_API_KEY: str = ""
 
     # Test helpers

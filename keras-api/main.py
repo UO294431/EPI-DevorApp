@@ -1,6 +1,7 @@
 import os
 import json
 import traceback as tb
+import aiofiles
 import numpy as np
 import tensorflow as tf
 from fastapi import FastAPI, Header, HTTPException, Depends
@@ -123,10 +124,10 @@ async def startup_event():
     # 2. Cargar Mapeos
     _models_dir = os.path.join(BASE_DIR, "models")
     try:
-        with open(os.path.join(_models_dir, "user_mapping.json"), "r") as f:
-            user_mapping = json.load(f)
-        with open(os.path.join(_models_dir, "place_mapping.json"), "r") as f:
-            place_mapping = json.load(f)
+        async with aiofiles.open(os.path.join(_models_dir, "user_mapping.json"), "r") as f:
+            user_mapping = json.loads(await f.read())
+        async with aiofiles.open(os.path.join(_models_dir, "place_mapping.json"), "r") as f:
+            place_mapping = json.loads(await f.read())
         print(f"✅ Mappings cargados — {len(user_mapping)} usuarios / {len(place_mapping)} lugares.")
     except Exception as e:
         print(f"⚠️  Mapeos no encontrados: {e}. Ejecuta train_pipeline.py primero.")
@@ -135,8 +136,8 @@ async def startup_event():
     _cache_path = os.path.join(BASE_DIR, "places_cache.json")
     try:
         if os.path.exists(_cache_path):
-            with open(_cache_path, "r", encoding="utf-8") as f:
-                places_cache = json.load(f)
+            async with aiofiles.open(_cache_path, "r", encoding="utf-8") as f:
+                places_cache = json.loads(await f.read())
             print(f"✅ Caché de lugares cargado ({len(places_cache)} entradas).")
         else:
             print(f"ℹ️  No hay places_cache.json aún (se creará al entrenar).")

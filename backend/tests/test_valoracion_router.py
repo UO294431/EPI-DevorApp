@@ -45,7 +45,7 @@ async def test_valorar_restaurante_endpoint(mock_service, mock_get_uid, dummy_us
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/valoraciones", json={
             "place_id": "place1", "calidad": 5, "precio": 4, "higiene": 3, "trato": 5
         })
@@ -73,7 +73,7 @@ async def test_obtener_todas_mis_valoraciones_endpoint(mock_rec_service, mock_se
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/valoraciones")
 
     app.dependency_overrides.clear()
@@ -99,7 +99,7 @@ async def test_obtener_mi_valoracion_existente_endpoint(mock_service, mock_get_u
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/valoraciones/place1")
 
     app.dependency_overrides.clear()
@@ -118,7 +118,7 @@ async def test_obtener_mi_valoracion_no_existente_endpoint(mock_service, mock_ge
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/valoraciones/place_inexistente")
 
     app.dependency_overrides.clear()
@@ -138,7 +138,7 @@ async def test_eliminar_valoracion_endpoint_success(mock_service, mock_get_uid, 
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.delete("/api/valoraciones/place1")
 
     app.dependency_overrides.clear()
@@ -155,7 +155,7 @@ async def test_eliminar_valoracion_endpoint_not_found(mock_service, mock_get_uid
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.delete("/api/valoraciones/place_inexistente")
 
     app.dependency_overrides.clear()
@@ -184,7 +184,7 @@ async def test_obtener_resenas_restaurante_con_datos(mock_service, mock_get_uid,
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/valoraciones/restaurante/place1")
 
     app.dependency_overrides.clear()
@@ -207,7 +207,7 @@ async def test_obtener_resenas_restaurante_sin_datos(mock_service, mock_get_uid,
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/valoraciones/restaurante/place_sin_resenas")
 
     app.dependency_overrides.clear()
@@ -230,7 +230,7 @@ async def test_dar_me_gusta_exitoso(mock_service, mock_get_uid, dummy_user):
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/valoraciones/1/like")
 
     app.dependency_overrides.clear()
@@ -250,7 +250,7 @@ async def test_dar_me_gusta_valoracion_no_encontrada(mock_service, mock_get_uid,
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/valoraciones/9999/like")
 
     app.dependency_overrides.clear()

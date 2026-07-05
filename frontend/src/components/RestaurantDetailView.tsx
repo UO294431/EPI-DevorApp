@@ -131,18 +131,16 @@ const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
 
                 {/* Opening Hours Section */}
                 <div className="detail-section">
-                    <div
+                    <button
                         className="detail-section-header"
                         onClick={() => setHoursExpanded(!hoursExpanded)}
-                        onKeyDown={(e) => e.key === 'Enter' && setHoursExpanded(!hoursExpanded)}
-                        role="button"
-                        tabIndex={0}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     >
                         <div className="detail-section-title">
                             <Clock size={18} /> Horario de apertura
                         </div>
                         {hoursExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                    </div>
+                    </button>
                     
                     {hoursExpanded && formattedHours.length > 0 && (
                         <div className="opening-hours-content" style={{ animation: 'fadeSlideIn 0.2s ease' }}>

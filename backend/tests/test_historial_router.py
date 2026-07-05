@@ -33,7 +33,7 @@ async def test_get_historial_endpoint(mock_rec_service, mock_hist_service, mock_
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/historial")
 
     app.dependency_overrides.clear()
@@ -57,7 +57,7 @@ async def test_add_to_historial_endpoint(mock_rec_service, mock_hist_service, mo
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/historial", json={"place_id": "place1"})
 
     app.dependency_overrides.clear()
@@ -75,7 +75,7 @@ async def test_delete_from_historial_endpoint_success(mock_hist_service, mock_ge
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.delete("/api/historial/1")
 
     app.dependency_overrides.clear()
@@ -91,7 +91,7 @@ async def test_delete_from_historial_endpoint_not_found(mock_hist_service, mock_
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.delete("/api/historial/1")
 
     app.dependency_overrides.clear()

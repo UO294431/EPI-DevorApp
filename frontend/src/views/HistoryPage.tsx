@@ -437,12 +437,10 @@ const HistoryPage: React.FC = () => {
                                             <IconComp size={20} />
                                         </div>
                                         <div className="aspect-info-premium">
-                                            <div 
+                                            <button 
                                                 className="rating-label-with-help"
                                                 onClick={() => setActiveTooltip(activeTooltip === aspect ? null : aspect)}
-                                                onKeyDown={(e) => e.key === 'Enter' && setActiveTooltip(activeTooltip === aspect ? null : aspect)}
-                                                role="button"
-                                                tabIndex={0}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
                                             >
                                                 <span className="aspect-name-premium" style={{ textTransform: 'capitalize', marginRight: '0.4rem' }}>
                                                     {aspect}
@@ -454,7 +452,7 @@ const HistoryPage: React.FC = () => {
                                                         {ASPECT_DESCRIPTIONS[aspect]}
                                                     </div>
                                                 )}
-                                            </div>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -695,19 +693,17 @@ const HistoryPage: React.FC = () => {
                             const isOpen = expandedGroups.has(key);
                             return (
                                 <div key={key}>
-                                    <div
+                                    <button
                                         className="history-group-header"
                                         onClick={() => toggleGroup(key)}
-                                        onKeyDown={(e) => e.key === 'Enter' && toggleGroup(key)}
-                                        role="button"
-                                        tabIndex={0}
+                                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                                     >
                                         <span className="history-group-title">{group.label}</span>
                                         <div className="history-group-meta">
                                             <span>{group.entries.length} restaurantes</span>
                                             {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                         </div>
-                                    </div>
+                                    </button>
 
                                     {isOpen && (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem 0 1rem' }}>
@@ -716,14 +712,12 @@ const HistoryPage: React.FC = () => {
                                                 const visitDate = new Date(entry.visited_at || '');
 
                                                 return (
-                                                    <div
+                                                    <button
                                                         key={entry.id}
                                                         className="restaurant-compact-card"
                                                         onClick={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
-                                                        onKeyDown={(e) => { if (e.key === 'Enter' && entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
-                                                        role="button"
-                                                        tabIndex={0}
                                                         aria-label={`Ver detalles de ${entry.name}`}
+                                                        style={{ width: '100%', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative', textAlign: 'left' }}
                                                     >
                                                         <div style={{ position: 'absolute', top: '10px', right: '35px', zIndex: 10 }}>
                                                             <div className={`status-badge ${isRated ? 'rated' : 'unrated'}`}>
@@ -753,7 +747,7 @@ const HistoryPage: React.FC = () => {
                                                             onDelete={() => handleDeleteFromHistory(entry)}
                                                             onDetails={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
                                                         />
-                                                    </div>
+                                                    </button>
                                                 );
                                             })}
                                         </div>

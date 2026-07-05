@@ -339,10 +339,7 @@ const LoginPage: React.FC = () => {
           <div
             className="sidemenu-backdrop"
             onClick={() => setShowUsernameModal(false)}
-            onKeyDown={(e) => e.key === 'Escape' && setShowUsernameModal(false)}
-            role="button"
-            tabIndex={0}
-            aria-label="Cerrar modal"
+            aria-hidden="true"
           />
           <div className="auth-content" style={{ position: 'relative', zIndex: 10000, background: 'var(--bg)', padding: '2rem', borderRadius: '1rem', width: '90%', maxWidth: '400px' }}>
             <h2>Elige tu nombre de usuario</h2>

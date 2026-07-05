@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/recommendations` : 'http://localhost:8000/api/recommendations';
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/recommendations` : `${window.location.origin}/api/recommendations`;
 
 export interface RecommendationParams {
     categories: string[];

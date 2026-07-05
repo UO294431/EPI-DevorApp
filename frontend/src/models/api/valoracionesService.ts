@@ -41,7 +41,7 @@ export interface ValoracionDetailedResponse {
     fecha: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 
 const CACHE_KEYS = {
     MIS_VALORACIONES: 'mis_valoraciones',
@@ -133,13 +133,13 @@ export const valoracionesService = {
         const cached = cacheService.get<ValoracionPublica[]>(cacheKey);
         if (cached) return cached;
 
-        const url = `${API_URL}/valoraciones/restaurante/${place_id}`;
-        const parsedUrl = new URL(url, 'http://localhost');
+        const url = `${API_URL}/valoraciones/restaurante/${encodeURIComponent(place_id)}`;
+        const parsedUrl = new URL(url, window.location.origin);
         if (!parsedUrl.pathname.startsWith('/api/valoraciones/restaurante/') && !parsedUrl.pathname.startsWith('/valoraciones/restaurante/')) {
             throw new Error('Invalid API endpoint path');
         }
 
-        const response = await fetch(url, {
+        const response = await fetch(parsedUrl.toString(), {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
         });

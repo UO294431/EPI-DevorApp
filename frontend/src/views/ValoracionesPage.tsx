@@ -178,13 +178,10 @@ const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
 
                                     return (
                                         <div key={val.id} style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                                            <div
+                                            <button
                                                 onClick={() => setExpandedEntryId(isExpanded ? null : val.id)}
-                                                onKeyDown={(e) => e.key === 'Enter' && setExpandedEntryId(isExpanded ? null : val.id)}
-                                                role="button"
-                                                tabIndex={0}
                                                 className="restaurant-compact-card"
-                                                style={{ border: 'none', borderRadius: 0 }}
+                                                style={{ border: 'none', borderRadius: 0, width: '100%', display: 'flex', alignItems: 'center', background: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
                                                 aria-label={`Ver valoración de ${restaurant.name || 'Restaurante'}`}
                                             >
                                                 <div className="compact-img-box">
@@ -207,7 +204,7 @@ const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
                                                 <div style={{ color: 'var(--muted)', opacity: 0.5 }}>
                                                     {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                                                 </div>
-                                            </div>
+                                            </button>
 
                                             {isExpanded && (
                                                 <div style={{ 

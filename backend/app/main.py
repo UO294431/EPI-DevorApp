@@ -14,14 +14,12 @@ app = FastAPI(
 )
 
 # Necesario para que el frontend (React) pueda hacer peticiones al backend
-_extra_origin = os.getenv("EXTRA_ORIGIN", "")
+_extra_origins = [o.strip() for o in os.getenv("EXTRA_ORIGINS", "").split(",") if o.strip()]
 _allowed_origins = [
-    "http://localhost:5173",
     "https://localhost:5173",
     "https://127.0.0.1:5173",
-]
-if _extra_origin:
-    _allowed_origins.append(_extra_origin)
+    # Para desarrollo local sin TLS, añadir http://localhost:5173 en EXTRA_ORIGINS
+] + _extra_origins
 
 app.add_middleware(
     CORSMiddleware,

@@ -27,7 +27,7 @@ async def test_get_listas_endpoint(mock_service, mock_get_uid, dummy_user):
     
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/favoritos/listas")
 
     app.dependency_overrides.clear()
@@ -46,7 +46,7 @@ async def test_create_lista_endpoint_success(mock_service, mock_get_uid, dummy_u
     
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/favoritos/listas", json={"nombre": "Fav1"})
 
     app.dependency_overrides.clear()
@@ -64,7 +64,7 @@ async def test_create_lista_endpoint_duplicate(mock_service, mock_get_uid, dummy
     
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/favoritos/listas", json={"nombre": "Fav1"})
 
     app.dependency_overrides.clear()
@@ -81,7 +81,7 @@ async def test_delete_lista_endpoint_success(mock_service, mock_get_uid, dummy_u
     
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.delete("/api/favoritos/listas/1")
 
     app.dependency_overrides.clear()
@@ -97,7 +97,7 @@ async def test_delete_lista_endpoint_not_found(mock_service, mock_get_uid, dummy
     
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.delete("/api/favoritos/listas/1")
 
     app.dependency_overrides.clear()
@@ -120,7 +120,7 @@ async def test_get_lista_detalle_endpoint(mock_rec_service, mock_fav_service, mo
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.get("/api/favoritos/listas/1")
 
     app.dependency_overrides.clear()
@@ -143,7 +143,7 @@ async def test_add_favorito_endpoint_success(mock_rec_service, mock_fav_service,
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/favoritos/listas/1", json={"place_id": "place1"})
 
     app.dependency_overrides.clear()
@@ -162,7 +162,7 @@ async def test_add_favorito_endpoint_duplicate(mock_fav_service, mock_get_uid, d
 
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/favoritos/listas/1", json={"place_id": "place1"})
 
     app.dependency_overrides.clear()
@@ -179,7 +179,7 @@ async def test_delete_favorito_endpoint_success(mock_service, mock_get_uid, dumm
     
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.delete("/api/favoritos/1")
 
     app.dependency_overrides.clear()

@@ -28,7 +28,7 @@ async def test_search_recommendations_endpoint(mock_search, dummy_user):
     # Sobrescribir dependencia para bypass de auth
     app.dependency_overrides[get_current_user] = lambda: dummy_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         payload = {
             "location": "Madrid",
             "categories": ["pizza"],
@@ -58,7 +58,7 @@ async def test_search_recommendations_unauthorized():
     
     app.dependency_overrides[get_current_user] = mock_get_current_user_fail
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as ac:
         response = await ac.post("/api/recommendations/search", json={})
 
     app.dependency_overrides.clear()

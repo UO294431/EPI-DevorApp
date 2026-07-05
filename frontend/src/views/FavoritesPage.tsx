@@ -86,8 +86,8 @@ const NewListModal: React.FC<NewListModalProps> = ({ onClose, onCreate }) => {
             background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
             display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
             animation: 'fadeIn 0.2s ease',
-        }} onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} style={{
+        }} onClick={onClose} aria-hidden="true">
+            <div onClick={e => e.stopPropagation()} aria-hidden="false" style={{
                 background: 'var(--surface-2)',
                 borderRadius: '24px 24px 0 0',
                 width: '100%', maxWidth: '600px',
@@ -522,14 +522,12 @@ const FavoritesPage: React.FC = () => {
                                         ) : (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                                 {lists.map(list => (
-                                                    <div
+                                                    <button
                                                         key={list.id}
                                                         className="fav-list-card"
                                                         onClick={() => setSearchParams({ list: list.id.toString() })}
-                                                        onKeyDown={(e) => e.key === 'Enter' && setSearchParams({ list: list.id.toString() })}
-                                                        role="button"
-                                                        tabIndex={0}
                                                         aria-label={`Ver lista ${list.nombre}`}
+                                                        style={{ width: '100%', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
                                                     >
                                                         <div className="fav-icon-box" style={{ background: getIconColor(list.icono || 'Heart') }}>
                                                             {renderIcon(list.icono || 'Heart', 22)}
@@ -546,7 +544,7 @@ const FavoritesPage: React.FC = () => {
                                                             onRename={() => handleRename(list)}
                                                             onDelete={() => handleDelete(list)}
                                                         />
-                                                    </div>
+                                                    </button>
                                                 ))}
                                             </div>
                                         )}
@@ -591,13 +589,11 @@ const FavoritesPage: React.FC = () => {
                                             const r = fav.restaurant;
                                             return (
                                                 <div key={fav.id} style={{ marginBottom: '0.75rem' }}>
-                                                    <div
+                                                    <button
                                                         className="restaurant-compact-card"
                                                         onClick={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
-                                                        onKeyDown={(e) => e.key === 'Enter' && setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
-                                                        role="button"
-                                                        tabIndex={0}
                                                         aria-label={`Ver detalles de ${r.name}`}
+                                                        style={{ width: '100%', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
                                                     >
                                                         <div className="compact-img-box">
                                                             {r.main_photo ? (
@@ -640,7 +636,7 @@ const FavoritesPage: React.FC = () => {
                                                             }}
                                                             onDetails={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
                                                         />
-                                                    </div>
+                                                    </button>
                                                 </div>
                                             );
                                         })}

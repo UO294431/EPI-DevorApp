@@ -301,7 +301,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                     throw new Error('Invalid geocoding service domain');
                 }
 
-                const response = await fetch(url);
+                const response = await fetch(parsedUrl.toString());
                 const data = await response.json();
 
                 let countryCode = null;
@@ -900,16 +900,13 @@ const RestaurantRecommendationPage: React.FC = () => {
                                             overflowY: 'auto', marginTop: '0.3rem', boxShadow: 'var(--shadow-md)'
                                         }}>
                                             {filteredTags.map(tag => (
-                                                <div key={tag.id}
+                                                <button key={tag.id}
                                                     onClick={() => handleAddTag(tag)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleAddTag(tag)}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    style={{ padding: '0.8rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                                                    style={{ width: '100%', display: 'block', padding: '0.8rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: 'none', border: 'none', borderBottomColor: 'var(--border)', textAlign: 'left' }}
                                                 >
                                                     <div style={{ fontWeight: 500, fontSize: 'var(--font-sm)', color: 'var(--text)' }}>{tag.label}</div>
                                                     <div style={{ fontSize: 'var(--font-xs)', color: 'var(--muted)' }}>{tag.category}</div>
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     )}
@@ -1126,12 +1123,10 @@ const RestaurantRecommendationPage: React.FC = () => {
 
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             {results.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((place: any, index: number) => (
-                                <div key={place.id}
+                                <button key={place.id}
                                     className={`suggestion-card ${index === 0 && currentPage === 1 ? 'best-match' : ''}`}
                                     onClick={() => handleExpandRestaurant(place)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleExpandRestaurant(place)}
-                                    role="button"
-                                    tabIndex={0}>
+                                    style={{ width: '100%', display: 'block', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
 
                                     {index === 0 && currentPage === 1 && (
                                         <div className="best-match-badge">
@@ -1174,7 +1169,7 @@ const RestaurantRecommendationPage: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </button>
                             ))}
                         </div>
 

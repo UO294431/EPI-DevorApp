@@ -229,13 +229,11 @@ const SavedForLaterPage: React.FC = () => {
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 {filteredEntries.map((entry: any) => (
                                     <div key={entry.id} style={{ marginBottom: '0.75rem' }}>
-                                        <div
+                                        <button
                                             className="restaurant-compact-card"
                                             onClick={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
-                                            onKeyDown={(e) => { if (e.key === 'Enter' && entry.id) setSearchParams({ detail: entry.id.toString() }); }}
-                                            role="button"
-                                            tabIndex={0}
                                             aria-label={`Ver detalles de ${entry.name}`}
+                                            style={{ width: '100%', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
                                         >
                                             <div className="compact-img-box">
                                                 {entry.main_photo ? (
@@ -277,7 +275,7 @@ const SavedForLaterPage: React.FC = () => {
                                                 }}
                                                 onDetails={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
                                             />
-                                        </div>
+                                        </button>
                                     </div>
                                 ))}
                             </div>

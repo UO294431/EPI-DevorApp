@@ -418,13 +418,11 @@ const HomePage: React.FC = () => {
             <div className="restaurant-list">
               {populares.map((place: any) => (
                 <div key={place.id} style={{ marginBottom: '0.75rem' }}>
-                  <div
+                  <button
                     className="restaurant-compact-card"
                     onClick={() => { if (place.id) setSearchParams({ detail: place.id.toString() }); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && place.id) setSearchParams({ detail: place.id.toString() }); }}
-                    role="button"
-                    tabIndex={0}
                     aria-label={`Ver detalles de ${place.name}`}
+                    style={{ width: '100%', display: 'flex', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
                   >
                     <div className="compact-img-box">
                       {place.main_photo ? (
@@ -447,7 +445,7 @@ const HomePage: React.FC = () => {
                     </div>
 
                     <ChevronRight size={18} style={{ color: 'var(--muted)' }} />
-                  </div>
+                  </button>
                 </div>
               ))}
             </div>
