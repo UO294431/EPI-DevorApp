@@ -1,0 +1,343 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, desarrollo ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ─── BACKEND TEST & BUILD ───────────────────────────────────────────────────
+  backend-ci:
+    name: Backend Test & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'poetry'
+          cache-dependency-path: backend/poetry.lock
+
+      - name: Install postgres dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev gcc
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          poetry install --with dev
+
+      - name: Run backend unit and integration tests
+        run: |
+          cd backend
+          poetry run pytest tests/ -v --cov=app --cov-report=xml:coverage.xml
+
+      - name: Install Keras API dependencies
+        run: |
+          cd keras-api
+          pip install -r requirements.txt
+
+      - name: Run Keras API tests
+        run: |
+          cd keras-api
+          pytest test_main.py -v --cov=. --cov-report=xml:coverage.xml
+
+      - name: Upload Backend Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+
+      - name: Upload Keras Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: keras-coverage
+          path: keras-api/coverage.xml
+
+  # ─── FRONTEND TEST & LINT ────────────────────────────────────────────────────
+  frontend-ci:
+    name: Frontend Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Run frontend unit tests
+        run: |
+          cd frontend
+          npm run test -- --coverage
+
+      - name: Upload Frontend Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+
+  # ─── STATIC ANALYSIS (SONAR) ────────────────────────────────────────────────
+  sonar-analysis:
+    name: SonarQube static analysis
+    runs-on: ubuntu-latest
+    needs: [backend-ci, frontend-ci]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Download Backend Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend
+
+      - name: Download Keras Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: keras-coverage
+          path: keras-api
+
+      - name: Download Frontend Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── DOCKER PACKAGING ────────────────────────────────────────────────────────
+  build-docker-images:
+    name: Build & Publish Docker Images
+    runs-on: ubuntu-latest
+    needs: [sonar-analysis]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker images
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          # Build backend
+          docker build -t ${{ env.REGISTRY }}/$REPO_LOWER/backend:$SHORT_SHA -t ${{ env.REGISTRY }}/$REPO_LOWER/backend:latest ./backend
+          docker push ${{ env.REGISTRY }}/$REPO_LOWER/backend:$SHORT_SHA
+          docker push ${{ env.REGISTRY }}/$REPO_LOWER/backend:latest
+
+          # Build frontend
+          docker build -t ${{ env.REGISTRY }}/$REPO_LOWER/frontend:$SHORT_SHA -t ${{ env.REGISTRY }}/$REPO_LOWER/frontend:latest ./frontend
+          docker push ${{ env.REGISTRY }}/$REPO_LOWER/frontend:$SHORT_SHA
+          docker push ${{ env.REGISTRY }}/$REPO_LOWER/frontend:latest
+
+          # Build keras-api (recommendation model service)
+          docker build -t ${{ env.REGISTRY }}/$REPO_LOWER/keras-api:$SHORT_SHA -t ${{ env.REGISTRY }}/$REPO_LOWER/keras-api:latest ./keras-api
+          docker push ${{ env.REGISTRY }}/$REPO_LOWER/keras-api:$SHORT_SHA
+          docker push ${{ env.REGISTRY }}/$REPO_LOWER/keras-api:latest
+
+          # If running on a tag, also push the version tag
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_NAME="${{ github.ref_name }}"
+            docker tag ${{ env.REGISTRY }}/$REPO_LOWER/backend:$SHORT_SHA ${{ env.REGISTRY }}/$REPO_LOWER/backend:$TAG_NAME
+            docker push ${{ env.REGISTRY }}/$REPO_LOWER/backend:$TAG_NAME
+
+            docker tag ${{ env.REGISTRY }}/$REPO_LOWER/frontend:$SHORT_SHA ${{ env.REGISTRY }}/$REPO_LOWER/frontend:$TAG_NAME
+            docker push ${{ env.REGISTRY }}/$REPO_LOWER/frontend:$TAG_NAME
+
+            docker tag ${{ env.REGISTRY }}/$REPO_LOWER/keras-api:$SHORT_SHA ${{ env.REGISTRY }}/$REPO_LOWER/keras-api:$TAG_NAME
+            docker push ${{ env.REGISTRY }}/$REPO_LOWER/keras-api:$TAG_NAME
+          fi
+
+  # ─── ANDROID PACKAGING (APK) ────────────────────────────────────────────────
+  build-apk:
+    name: Build & Sign Android APK
+    runs-on: ubuntu-latest
+    needs: [sonar-analysis]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build web assets
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Sync Capacitor Android
+        run: |
+          cd frontend
+          npx cap sync android
+
+      - name: Assemble & Sign Release APK
+        env:
+          KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+        run: |
+          cd frontend/android
+          echo "$KEYSTORE_FILE" | base64 --decode > keystore.jks
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/frontend/android/keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_STORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEYSTORE_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEYSTORE_KEY_PASSWORD
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: devorapp-apk
+          path: frontend/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+
+  # ─── PLAY STORE DEPLOYMENT (RELEASE ONLY) ───────────────────────────
+  deploy-play-store:
+    name: Publish to Play Store
+    runs-on: ubuntu-latest
+    needs: [build-apk]
+    if: startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: production
+      url: https://play.google.com/store/apps/details?id=com.devorapp.epi
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: devorapp-apk
+          path: frontend/android/app/build/outputs/apk/release
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Install Fastlane
+        run: |
+          gem install fastlane --no-document
+
+      - name: Deploy via Fastlane
+        env:
+          GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+        run: |
+          cd frontend
+          echo "$GOOGLE_PLAY_JSON_KEY" > google-play-key.json
+          fastlane android deploy
+
+  # ─── TECHNICAL DOCUMENTATION (RELEASE ONLY) ──────────────────────────────────
+  deploy-docs:
+    name: Generate & Publish Sphinx Docs
+    runs-on: ubuntu-latest
+    needs: [sonar-analysis]
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'poetry'
+          cache-dependency-path: backend/poetry.lock
+
+      - name: Install postgres dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev gcc
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          poetry install --with dev
+
+      - name: Build documentation
+        run: |
+          cd backend
+          poetry run sphinx-build -b html ../docs ../docs/_build/html
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

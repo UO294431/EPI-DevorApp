@@ -87,6 +87,22 @@ build_frontend:
     - main
     - tags
 
+build_keras_api:
+  stage: build
+  image: docker:27
+  services:
+    - docker:dind
+  variables:
+    KERAS_IMAGE: "$CI_REGISTRY_IMAGE/keras-api"
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" "$CI_REGISTRY" --password-stdin
+    - docker build -t "$KERAS_IMAGE:$CI_COMMIT_SHORT_SHA" -t "$KERAS_IMAGE:latest" ./keras-api
+    - docker push "$KERAS_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$KERAS_IMAGE:latest"
+  only:
+    - main
+    - tags
+
 # ─── ANDROID APK ─────────────────────────────────────────────────────────────
 # Runs as soon as the frontend tests pass, independently of Docker builds.
 # Requires the android/ folder to be committed (run `npx cap add android` locally first).
