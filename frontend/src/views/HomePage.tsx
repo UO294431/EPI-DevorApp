@@ -11,6 +11,7 @@ import { savedForLaterService } from '../models/api/savedForLaterService';
 import { valoracionesService } from '../models/api/valoracionesService';
 import type { ValoracionPublica } from '../models/api/valoracionesService';
 import TopBar from '../components/TopBar';
+import RestaurantCompactCard from '../components/RestaurantCompactCard';
 import RestaurantDetailView from '../components/RestaurantDetailView';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -417,36 +418,17 @@ const HomePage: React.FC = () => {
           ) : (
             <div className="restaurant-list">
               {populares.map((place: any) => (
-                <div key={place.id} style={{ marginBottom: '0.75rem' }}>
-                  <button
-                    className="restaurant-compact-card"
-                    onClick={() => { if (place.id) setSearchParams({ detail: place.id.toString() }); }}
-                    aria-label={`Ver detalles de ${place.name}`}
-                    style={{ width: '100%', display: 'flex', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
-                  >
-                    <div className="compact-img-box">
-                      {place.main_photo ? (
-                        <img src={place.main_photo} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />
-                      )}
-                    </div>
-
-                    <div className="compact-info">
-                      <div className="compact-name">{place.name}</div>
-                      <div className="compact-meta">
-                        <div className="compact-rating">
-                          <Star size={12} fill="currentColor" /> {place.rating ?? 0}
-                        </div>
-                        <span>({place.user_ratings_total ?? 0})</span>
-                        {place.types && place.types[0] && <span>• {place.types[0].charAt(0).toUpperCase() + place.types[0].slice(1).replaceAll('_', ' ')}</span>}
-                      </div>
-                      <div className="compact-address">{place.address}</div>
-                    </div>
-
-                    <ChevronRight size={18} style={{ color: 'var(--muted)' }} />
-                  </button>
-                </div>
+                <RestaurantCompactCard
+                  key={place.id}
+                  name={place.name}
+                  rating={place.rating ?? 0}
+                  user_ratings_total={place.user_ratings_total ?? 0}
+                  types={place.types}
+                  address={place.address}
+                  main_photo={place.main_photo}
+                  onClick={() => { if (place.id) setSearchParams({ detail: place.id.toString() }); }}
+                  actionSlot={<ChevronRight size={18} style={{ color: 'var(--muted)', marginLeft: 'auto' }} />}
+                />
               ))}
             </div>
           )}

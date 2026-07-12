@@ -9,6 +9,7 @@ import type { SavedForLaterEntry } from '../models/api/savedForLaterService';
 import { historialService } from '../models/api/historialService';
 import TopBar from '../components/TopBar';
 import RestaurantDetailView from '../components/RestaurantDetailView';
+import RestaurantCompactCard from '../components/RestaurantCompactCard';
 import { useNotification } from '../components/NotificationSystem';
 
 // ── Item Menu (for restaurants) ──────────────────────────────────────────────
@@ -226,59 +227,42 @@ const SavedForLaterPage: React.FC = () => {
                                 <p>No hay resultados para "{searchTerm}"</p>
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                {filteredEntries.map((entry: any) => (
-                                    <div key={entry.id} style={{ marginBottom: '0.75rem' }}>
-                                        <button
-                                            className="restaurant-compact-card"
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    {filteredEntries.map((entry: any) => (
+                                        <RestaurantCompactCard
+                                            key={entry.id}
+                                            name={entry.name}
+                                            rating={entry.rating}
+                                            user_ratings_total={entry.user_ratings_total}
+                                            types={entry.types}
+                                            address={entry.address}
+                                            main_photo={entry.main_photo}
                                             onClick={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
-                                            aria-label={`Ver detalles de ${entry.name}`}
-                                            style={{ width: '100%', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
-                                        >
-                                            <div className="compact-img-box">
-                                                {entry.main_photo ? (
-                                                    <img src={entry.main_photo} alt={entry.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                ) : (
-                                                    <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />
-                                                )}
-                                            </div>
-
-                                            <div className="compact-info">
-                                                <div className="compact-name">{entry.name}</div>
-                                                <div className="compact-meta">
-                                                    <div className="compact-rating">
-                                                        <Star size={12} fill="currentColor" /> {entry.rating}
-                                                    </div>
-                                                    <span>({entry.user_ratings_total})</span>
-                                                    {entry.types && entry.types[0] && <span>• {entry.types[0].charAt(0).toUpperCase() + entry.types[0].slice(1).replaceAll('_', ' ')}</span>}
-                                                </div>
-                                                <div className="compact-address">{entry.address}</div>
-                                            </div>
-
-                                            <ItemMenu
-                                                onDelete={async () => {
-                                                    const confirmed = await showConfirm(`¿Quitar ${entry.name}?`, 'Quitar lugar', true);
-                                                    if (confirmed) {
-                                                        await handleRemoveEntry(entry.id);
-                                                        showNotification(`${entry.name} quitado de la lista`, 'success');
-                                                    }
-                                                }}
-                                                onHistory={async () => {
-                                                    try {
-                                                        await historialService.addToHistorial(entry.place_id);
-                                                        await handleRemoveEntry(entry.id);
-                                                        showNotification(`Has elegido ${entry.name}`, 'success');
-                                                        navigate('/home');
-                                                    } catch (err: any) {
-                                                        showNotification("Error: " + err.message, 'error');
-                                                    }
-                                                }}
-                                                onDetails={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
-                                            />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                                            actionSlot={
+                                                <ItemMenu
+                                                    onDelete={async () => {
+                                                        const confirmed = await showConfirm(`¿Quitar ${entry.name}?`, 'Quitar lugar', true);
+                                                        if (confirmed) {
+                                                            await handleRemoveEntry(entry.id);
+                                                            showNotification(`${entry.name} quitado de la lista`, 'success');
+                                                        }
+                                                    }}
+                                                    onHistory={async () => {
+                                                        try {
+                                                            await historialService.addToHistorial(entry.place_id);
+                                                            await handleRemoveEntry(entry.id);
+                                                            showNotification(`Has elegido ${entry.name}`, 'success');
+                                                            navigate('/home');
+                                                        } catch (err: any) {
+                                                            showNotification("Error: " + err.message, 'error');
+                                                        }
+                                                    }}
+                                                    onDetails={() => { if (entry.id) setSearchParams({ detail: entry.id.toString() }); }}
+                                                />
+                                            }
+                                        />
+                                    ))}
+                                </div>
                         )}
                     </div>
                 )}

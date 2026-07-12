@@ -11,6 +11,7 @@ import type { FavoritosList, FavoritoItem } from '../models/api/favoritosService
 import { historialService } from '../models/api/historialService';
 import TopBar from '../components/TopBar';
 import RestaurantDetailView from '../components/RestaurantDetailView';
+import RestaurantCompactCard from '../components/RestaurantCompactCard';
 import { useNotification } from '../components/NotificationSystem';
 
 // ── Icon catalogue ────────────────────────────────────────────────────────────
@@ -588,31 +589,16 @@ const FavoritesPage: React.FC = () => {
                                         {filteredFavoritos.map((fav) => {
                                             const r = fav.restaurant;
                                             return (
-                                                <div key={fav.id} style={{ marginBottom: '0.75rem' }}>
-                                                    <button
-                                                        className="restaurant-compact-card"
-                                                        onClick={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
-                                                        aria-label={`Ver detalles de ${r.name}`}
-                                                        style={{ width: '100%', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
-                                                    >
-                                                        <div className="compact-img-box">
-                                                            {r.main_photo ? (
-                                                                <img src={r.main_photo} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                            ) : (
-                                                                <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />
-                                                            )}
-                                                        </div>
-                                                        <div className="compact-info">
-                                                            <div className="compact-name">{r.name}</div>
-                                                            <div className="compact-meta">
-                                                                <div className="compact-rating">
-                                                                    <Star size={12} fill="currentColor" /> {r.rating}
-                                                                </div>
-                                                                <span>({r.user_ratings_total})</span>
-                                                                {r.types && r.types[0] && <span>• {r.types[0].charAt(0).toUpperCase() + r.types[0].slice(1)}</span>}
-                                                            </div>
-                                                            <div className="compact-address">{r.address}</div>
-                                                        </div>
+                                                <RestaurantCompactCard
+                                                    key={fav.id}
+                                                    name={r.name}
+                                                    rating={r.rating}
+                                                    user_ratings_total={r.user_ratings_total}
+                                                    types={r.types}
+                                                    address={r.address}
+                                                    main_photo={r.main_photo}
+                                                    onClick={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
+                                                    actionSlot={
                                                         <ItemMenu
                                                             onDelete={async () => {
                                                                 const confirmed = await showConfirm(`¿Quitar ${r.name} de favoritos?`, 'Quitar de favoritos', true);
@@ -636,8 +622,8 @@ const FavoritesPage: React.FC = () => {
                                                             }}
                                                             onDetails={() => setSearchParams({ list: selectedList.id.toString(), detail: r.id.toString() })}
                                                         />
-                                                    </button>
-                                                </div>
+                                                    }
+                                                />
                                             );
                                         })}
                                     </div>

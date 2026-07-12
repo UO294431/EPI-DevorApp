@@ -13,6 +13,7 @@ import { favoritosService } from '../models/api/favoritosService';
 import { valoracionesService } from '../models/api/valoracionesService';
 import type { FavoritosList } from '../models/api/favoritosService';
 import TopBar from '../components/TopBar';
+import RestaurantCompactCard from '../components/RestaurantCompactCard';
 import RestaurantDetailView from '../components/RestaurantDetailView';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -712,42 +713,32 @@ const HistoryPage: React.FC = () => {
                                                 const visitDate = new Date(entry.visited_at || '');
 
                                                 return (
-                                                    <button
+                                                    <RestaurantCompactCard
                                                         key={entry.id}
-                                                        className="restaurant-compact-card"
+                                                        name={entry.name}
+                                                        rating={entry.rating}
+                                                        user_ratings_total={entry.user_ratings_total}
+                                                        address={entry.address}
+                                                        main_photo={entry.main_photo}
                                                         onClick={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
-                                                        aria-label={`Ver detalles de ${entry.name}`}
-                                                        style={{ width: '100%', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative', textAlign: 'left' }}
+                                                        metaSlot={<span>• {visitDate.getDate()} {visitDate.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}</span>}
+                                                        actionSlot={
+                                                            <ItemMenu
+                                                                isRated={isRated}
+                                                                onRate={() => handleRateClick(entry)}
+                                                                onFavorite={() => handleAddToFavoritesClick(entry)}
+                                                                onRechoose={() => handleRechoose(entry)}
+                                                                onDelete={() => handleDeleteFromHistory(entry)}
+                                                                onDetails={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
+                                                            />
+                                                        }
                                                     >
                                                         <div style={{ position: 'absolute', top: '10px', right: '35px', zIndex: 10 }}>
                                                             <div className={`status-badge ${isRated ? 'rated' : 'unrated'}`}>
                                                                 {isRated ? 'Reseñado' : 'Sin reseñar'}
                                                             </div>
                                                         </div>
-
-                                                        <div className="compact-img-box">
-                                                            {entry.main_photo ? <img src={entry.main_photo} alt={entry.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />}
-                                                        </div>
-
-                                                        <div className="compact-info">
-                                                            <div className="compact-name">{entry.name}</div>
-                                                            <div className="compact-meta">
-                                                                <div className="compact-rating"><Star size={12} fill="currentColor" /> {entry.rating}</div>
-                                                                <span>({entry.user_ratings_total})</span>
-                                                                <span>• {visitDate.getDate()} {visitDate.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}</span>
-                                                            </div>
-                                                            <div className="compact-address">{entry.address}</div>
-                                                        </div>
-
-                                                        <ItemMenu
-                                                            isRated={isRated}
-                                                            onRate={() => handleRateClick(entry)}
-                                                            onFavorite={() => handleAddToFavoritesClick(entry)}
-                                                            onRechoose={() => handleRechoose(entry)}
-                                                            onDelete={() => handleDeleteFromHistory(entry)}
-                                                            onDetails={() => { if (entry.place_id) setSearchParams({ detail: entry.place_id.toString() }); }}
-                                                        />
-                                                    </button>
+                                                    </RestaurantCompactCard>
                                                 );
                                             })}
                                         </div>

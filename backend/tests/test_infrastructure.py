@@ -161,3 +161,56 @@ async def test_get_predictions_error(keras_client):
     with patch("httpx.AsyncClient.post", side_effect=Exception("timeout")):
         result = await keras_client.get_predictions({"user_id": "u1", "candidates": []})
     assert result == {}
+
+
+# ── initialize_db ─────────────────────────────────────────────────────────────
+
+def test_init_db_crea_tablas_cuando_no_existen():
+    """init_db devuelve True y llama a create_all cuando no hay tablas."""
+    from app.initialize_db import init_db
+
+    mock_inspector = MagicMock()
+    mock_inspector.get_table_names.return_value = []
+
+    mock_metadata = MagicMock()
+
+    with patch("app.initialize_db.inspect", return_value=mock_inspector), \
+         patch("app.initialize_db.Base") as mock_base:
+        mock_base.metadata = mock_metadata
+        result = init_db()
+
+    assert result is True
+    mock_metadata.create_all.assert_called_once()
+
+
+def test_init_db_omite_creacion_cuando_ya_existen_tablas():
+    """init_db devuelve False y NO llama a create_all cuando ya hay tablas."""
+    from app.initialize_db import init_db
+
+    mock_inspector = MagicMock()
+    mock_inspector.get_table_names.return_value = ["usuarios", "restaurantes"]
+
+    mock_metadata = MagicMock()
+
+    with patch("app.initialize_db.inspect", return_value=mock_inspector), \
+         patch("app.initialize_db.Base") as mock_base:
+        mock_base.metadata = mock_metadata
+        result = init_db()
+
+    assert result is False
+    mock_metadata.create_all.assert_not_called()
+
+
+def test_init_db_llama_a_inspect_con_el_engine():
+    """init_db pasa el engine de la BD al inspector de SQLAlchemy."""
+    from app.initialize_db import init_db, engine
+
+    mock_inspector = MagicMock()
+    mock_inspector.get_table_names.return_value = ["some_table"]
+
+    with patch("app.initialize_db.inspect", return_value=mock_inspector) as mock_inspect, \
+         patch("app.initialize_db.Base"):
+        init_db()
+
+    mock_inspect.assert_called_once_with(engine)
+

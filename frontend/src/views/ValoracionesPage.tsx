@@ -6,6 +6,7 @@ import {
 import { valoracionesService } from '../models/api/valoracionesService';
 import type { ValoracionDetailedResponse } from '../models/api/valoracionesService';
 import TopBar from '../components/TopBar';
+import RestaurantCompactCard from '../components/RestaurantCompactCard';
 import { useNotification } from '../components/NotificationSystem';
 
 const ValoracionesPage: React.FC = () => {
@@ -178,33 +179,23 @@ const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
 
                                     return (
                                         <div key={val.id} style={{ display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                                            <button
+                                            <RestaurantCompactCard
+                                                name={restaurant.name || 'Restaurante'}
+                                                address={restaurant.address || ''}
+                                                main_photo={restaurant.main_photo}
                                                 onClick={() => setExpandedEntryId(isExpanded ? null : val.id)}
-                                                className="restaurant-compact-card"
-                                                style={{ border: 'none', borderRadius: 0, width: '100%', display: 'flex', alignItems: 'center', background: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
-                                                aria-label={`Ver valoración de ${restaurant.name || 'Restaurante'}`}
-                                            >
-                                                <div className="compact-img-box">
-                                                    {restaurant.main_photo ? (
-                                                        <img src={restaurant.main_photo} alt={restaurant.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                    ) : (
-                                                        <UtensilsCrossed size={20} style={{ opacity: 0.3 }} />
-                                                    )}
-                                                </div>
-
-                                                <div className="compact-info">
-                                                    <div className="compact-name">{restaurant.name || 'Restaurante'}</div>
-                                                    <div className="compact-meta" style={{ gap: '0.4rem' }}>
+                                                metaSlot={
+                                                    <>
                                                         <span style={{ color: 'var(--accent-light)' }}>{typeStr}</span>
                                                         <span>• {getRelativeTime(val.fecha)}</span>
+                                                    </>
+                                                }
+                                                actionSlot={
+                                                    <div style={{ color: 'var(--muted)', opacity: 0.5, marginLeft: 'auto' }}>
+                                                        {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                                                     </div>
-                                                    <div className="compact-address">{restaurant.address}</div>
-                                                </div>
-
-                                                <div style={{ color: 'var(--muted)', opacity: 0.5 }}>
-                                                    {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                                                </div>
-                                            </button>
+                                                }
+                                            />
 
                                             {isExpanded && (
                                                 <div style={{ 

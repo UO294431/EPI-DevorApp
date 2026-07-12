@@ -25,6 +25,25 @@ const CACHE_KEYS = {
     SAVED_FOR_LATER: 'saved_for_later',
 };
 
+function mapBackendRestaurantToEntry(item: any): SavedForLaterEntry {
+    return {
+        id: String(item.id),
+        name: item.restaurant.name,
+        rating: item.restaurant.rating,
+        user_ratings_total: item.restaurant.user_ratings_total,
+        types: item.restaurant.types,
+        address: item.restaurant.address,
+        main_photo: item.restaurant.main_photo,
+        summary: item.restaurant.summary,
+        opening_hours: item.restaurant.opening_hours,
+        open_now: item.restaurant.open_now,
+        google_maps_uri: item.restaurant.google_maps_uri,
+        website_uri: item.restaurant.website_uri,
+        phone_number: item.restaurant.phone_number,
+        place_id: item.place_id,
+    };
+}
+
 class SavedForLaterService {
     async getSaved(): Promise<SavedForLaterEntry[]> {
         const cached = cacheService.get<SavedForLaterEntry[]>(CACHE_KEYS.SAVED_FOR_LATER);
@@ -45,22 +64,7 @@ class SavedForLaterService {
 
         // Mapear la respuesta del backend (que tiene { id, restaurant: {...} }) 
         // al formato que espera la vista
-        const mapped = data.map((item: any) => ({
-            id: String(item.id),
-            name: item.restaurant.name,
-            rating: item.restaurant.rating,
-            user_ratings_total: item.restaurant.user_ratings_total,
-            types: item.restaurant.types,
-            address: item.restaurant.address,
-            main_photo: item.restaurant.main_photo,
-            summary: item.restaurant.summary,
-            opening_hours: item.restaurant.opening_hours,
-            open_now: item.restaurant.open_now,
-            google_maps_uri: item.restaurant.google_maps_uri,
-            website_uri: item.restaurant.website_uri,
-            phone_number: item.restaurant.phone_number,
-            place_id: item.place_id,
-        }));
+        const mapped = data.map((item: any) => mapBackendRestaurantToEntry(item));
 
         cacheService.set(CACHE_KEYS.SAVED_FOR_LATER, mapped);
         return mapped;
@@ -83,24 +87,9 @@ class SavedForLaterService {
 
         cacheService.invalidate(CACHE_KEYS.SAVED_FOR_LATER);
 
-        // Mapeamos lo develto al formato de la vista
+        // Mapeamos lo devuelto al formato de la vista
         return {
-            entry: {
-                id: String(item.id),
-                name: item.restaurant.name,
-                rating: item.restaurant.rating,
-                user_ratings_total: item.restaurant.user_ratings_total,
-                types: item.restaurant.types,
-                address: item.restaurant.address,
-                main_photo: item.restaurant.main_photo,
-                summary: item.restaurant.summary,
-                opening_hours: item.restaurant.opening_hours,
-                open_now: item.restaurant.open_now,
-                google_maps_uri: item.restaurant.google_maps_uri,
-                website_uri: item.restaurant.website_uri,
-                phone_number: item.restaurant.phone_number,
-                place_id: item.place_id,
-            },
+            entry: mapBackendRestaurantToEntry(item),
             already_saved: item.already_saved
         };
     }
