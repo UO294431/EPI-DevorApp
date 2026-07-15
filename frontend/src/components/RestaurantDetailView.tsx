@@ -44,14 +44,14 @@ export const formatTimeRange = (timeStr: string): string => {
     }
 
     // Replace all kinds of dashes/spaces with a standard representation
-    let normalized = timeStr.replace(/[–—]/g, '-');
+    const normalized = timeStr.replace(/[–—]/g, '-');
 
     // Pattern to match time values, e.g., 12:00 PM, 12:00 p.m., 12 PM, 12 p.m., 12:00, 24:00, etc.
     const timeRegex = /\b(\d{1,2})(?::(\d{2}))?\s*([aApP]\.?[mM]\.?)?(?!\w)/g;
 
     let formatted = normalized.replace(timeRegex, (match, hStr, mStr, meridian) => {
         let h = parseInt(hStr, 10);
-        let m = mStr ? parseInt(mStr, 10) : 0;
+        const m = mStr ? parseInt(mStr, 10) : 0;
 
         // If it's a lone number (no colon and no AM/PM, e.g. "24" in "24 horas"), do not format
         if (!meridian && !mStr) {
