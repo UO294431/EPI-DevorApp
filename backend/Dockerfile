@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Create a non-privileged user and configure workdir
 RUN useradd -u 10001 -m appuser
