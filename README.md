@@ -28,7 +28,9 @@ En la carpeta [`docs`](docs) se encuentran los recursos teóricos y de diseño d
 - **Memoria del TFG**: El documento completo del proyecto se encuentra en [`docs/2026-TFG-TorreAlejandro.pdf`](docs/2026-TFG-TorreAlejandro.pdf), el cual detalla los requisitos del usuario, análisis de diseño, modelado del motor de IA y proceso de pruebas.
 - **Requisitos de Usuario**: Documentados formalmente dentro de la memoria y la estructura Sphinx de la carpeta.
 
-La documentación técnica auto-generada con **Sphinx** se despliega automáticamente en GitHub Pages mediante la integración continua al generar un nuevo tag de versión.
+La documentación técnica auto-generada con **Sphinx** se despliega automáticamente en GitHub Pages mediante la integración continua en cada push a `main` y al generar un nuevo tag de versión:
+
+- **📚 Documentación técnica (API Reference)**: [https://torrealejandro.github.io/EPI-DevorApp/](https://torrealejandro.github.io/EPI-DevorApp/)
 
 ---
 

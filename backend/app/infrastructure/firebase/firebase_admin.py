@@ -2,7 +2,10 @@
 Inicialización del Firebase Admin SDK.
 Se inicializa una sola vez en caliente (lazy singleton).
 """
+from __future__ import annotations
+
 import firebase_admin
+
 from firebase_admin import credentials, firestore, auth
 
 from app.core.config import settings
