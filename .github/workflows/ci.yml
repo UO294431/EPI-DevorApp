@@ -368,6 +368,8 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
           cd frontend/android
+          # Fix Windows CRLF line endings in gradlew (committed from Windows)
+          sed -i 's/\r$//' gradlew
           chmod +x gradlew
           if [ -z "$KEYSTORE_FILE" ]; then
             echo "KEYSTORE_FILE secret is not set. Building auto-signed debug APK."
