@@ -1,4 +1,5 @@
 import { cacheService } from './cacheService';
+import { getApiUrl } from './apiConfig';
 
 export interface ValoracionCreate {
     place_id: string;
@@ -41,7 +42,7 @@ export interface ValoracionDetailedResponse {
     fecha: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
+const API_URL = getApiUrl();
 
 const CACHE_KEYS = {
     MIS_VALORACIONES: 'mis_valoraciones',

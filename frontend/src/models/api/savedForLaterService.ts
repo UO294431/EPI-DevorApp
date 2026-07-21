@@ -1,6 +1,7 @@
 import { cacheService } from './cacheService';
+import { getApiUrl } from './apiConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
+const API_URL = getApiUrl();
 
 export interface SavedForLaterEntry {
     id: string; // En el frontend se tratará como string aunque venga como int

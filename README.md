@@ -183,6 +183,28 @@ GOOGLE_API_KEY=tu_api_key_de_google_places
 > **Credenciales de Firebase**: Para arrancar el backend es necesario colocar el archivo JSON de credenciales de tu proyecto de Firebase en `backend/firebase-service-account.json`. 
 > Si usas **Docker** y levantas los contenedores *antes* de crear este archivo, Docker creará automáticamente un directorio vacío con ese nombre en tu máquina host. Si te ocurre el error `IsADirectoryError: firebase-service-account.json`, detén el contenedor (`docker compose down`), borra el directorio erróneo (`Remove-Item -Recurse -Force backend/firebase-service-account.json` o `rm -rf`) y coloca el archivo JSON real antes de volver a construir.
 
+### 1.1 Configuración de Google Sign-In (Inicio de Sesión con Google)
+
+Para que el inicio de sesión con Google funcione tanto en el entorno web como en la aplicación móvil (APK), es necesario configurar un proyecto en **Google Cloud Console**:
+
+1. **Crear Credenciales de OAuth 2.0**:
+   - Accede a [Google Cloud Console](https://console.cloud.google.com/).
+   - Crea o selecciona tu proyecto de Google Cloud.
+   - Ve a **API y Servicios > Pantalla de consentimiento de OAuth** y confígurala.
+   - Ve a **Credenciales > Crear credenciales > ID de cliente de OAuth**.
+2. **Cliente Web**:
+   - Crea un ID de cliente de tipo **Aplicación web**.
+   - Añade los orígenes autorizados de JavaScript (ej. `http://localhost` y `http://localhost:5173` para desarrollo).
+   - Guarda el *ID de cliente* generado. Este valor deberá colocarse en las variables `VITE_GOOGLE_CLIENT_ID` (en el frontend) y `GOOGLE_CLIENT_ID` (en el backend).
+3. **Cliente Android (Importante para la APK)**:
+   - Para que funcione desde el dispositivo móvil, crea otro ID de cliente de tipo **Android** en la misma consola.
+   - Especifica el nombre del paquete: `com.devorapp.epi`.
+   - Añade la huella digital del certificado SHA-1 de tu firma:
+     * *Desarrollo local (Debug key)*: Obtén el SHA-1 ejecutando `./gradlew signingReport` en la carpeta `frontend/android` y copiando el SHA-1 de la clave `debug`.
+     * *Producción (Release key)*: Obtén el SHA-1 ejecutando `keytool -list -v -keystore tu_clave.jks` sobre el archivo keystore de producción (el que codificarás en Base64 para el pipeline).
+   - **Nota**: Google vincula automáticamente la autenticación en el móvil con el ID de cliente de tipo Android usando este SHA-1 y el nombre del paquete, de modo que no requiere cambios en el código de la app, pero es obligatorio registrarlo en la consola de Google Cloud para que no falle al iniciar sesión en el móvil.
+
+
 ### 2. Despliegue con Docker (Recomendado)
 
 Construir y arrancar todo el ecosistema (PostgreSQL, Backend, Frontend y Keras API):
@@ -318,6 +340,7 @@ graph TD
     A --> C[frontend-ci: ESLint & Vitest Coverage]
     B --> D[sonar-analysis: SonarCloud Scan]
     C --> D
+    C --> H[build-android-apk: Build, Sign & Release APK]
     D --> E[build-docker-images: Publish to GHCR]
     D --> F[deploy-docs: Sphinx a GitHub Pages]
     E --> G[system-tests: Run E2E & API Tests]
@@ -329,6 +352,8 @@ graph TD
 4. **`build-docker-images`**: Empaqueta los tres componentes en imágenes Docker y las publica automáticamente en el registro de contenedores de GitHub (GHCR), etiquetándolas con el short SHA del commit y la marca `latest`.
 5. **`deploy-docs`**: Se activa en la rama `main` y en tags de versión. Construye la documentación HTML de Sphinx y la publica automáticamente en GitHub Pages.
 6. **`system-tests`**: Levanta de forma temporal todo el stack en contenedores Docker, clona el repositorio externo [retorch-st-devorapp](https://github.com/augustocristian/retorch-st-devorapp) y ejecuta las pruebas de sistema E2E y de API (Maven) en modo headless.
+7. **`build-android-apk`**: Se ejecuta después de pasar con éxito las pruebas del frontend. Compila la aplicación Android con Gradle. Si están configurados los secretos de firma, firma la APK y, en caso de tratarse de un tag de versión (`v*`), la publica automáticamente en GitHub Releases.
+
 
 
 ### Flujo de SonarCloud

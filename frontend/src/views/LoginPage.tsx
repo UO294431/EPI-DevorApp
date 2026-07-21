@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
+  Settings,
 } from 'lucide-react';
 import { useLogin } from '../controllers/hooks/useLogin';
 import { usePasswordReset } from '../controllers/hooks/usePasswordReset';
@@ -362,6 +363,74 @@ const GoogleUsernameModal: React.FC<GoogleUsernameModalProps> = ({
   );
 };
 
+// ── Sub-component: ServerConfigModal ───────────────────────────────────────
+interface ServerConfigModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const ServerConfigModal: React.FC<ServerConfigModalProps> = ({ isOpen, onClose }) => {
+  const [url, setUrl] = useState(localStorage.getItem('CUSTOM_API_URL') || '');
+
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    if (url.trim()) {
+      localStorage.setItem('CUSTOM_API_URL', url.trim());
+    } else {
+      localStorage.removeItem('CUSTOM_API_URL');
+    }
+    window.location.reload();
+  };
+
+  const handleReset = () => {
+    localStorage.removeItem('CUSTOM_API_URL');
+    window.location.reload();
+  };
+
+  return (
+    <div className="sidemenu-overlay open" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div
+        className="sidemenu-backdrop"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="auth-content" style={{ position: 'relative', zIndex: 10000, background: 'var(--bg)', padding: '2rem', borderRadius: '1rem', width: '90%', maxWidth: '400px' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Configuración de Servidor</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.85rem', lineHeight: '1.3' }}>
+          Configura una URL personalizada de Backend (por ejemplo, tu dirección temporal de Ngrok o IP local).
+        </p>
+        <div className="form-group">
+          <label className="form-label" htmlFor="modal-server-url-input" style={{ marginBottom: '0.35rem', display: 'block', fontSize: '0.85rem' }}>URL del Backend (API)</label>
+          <input
+            id="modal-server-url-input"
+            type="text"
+            className="form-input"
+            placeholder="https://xxxx.ngrok-free.app/api o http://192.168.1.50:8000/api"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            style={{ width: '100%' }}
+          />
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem', fontSize: '0.75rem' }}>
+            Valor por defecto: <code style={{ wordBreak: 'break-all' }}>{import.meta.env.VITE_API_URL || `${window.location.origin}/api`}</code>
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem' }}>
+          <button className="btn-primary" onClick={handleSave} style={{ width: '100%' }}>
+            Guardar y Conectar
+          </button>
+          <button className="btn-back" onClick={handleReset} style={{ width: '100%', borderColor: 'var(--border)' }}>
+            Restablecer por defecto
+          </button>
+          <button className="btn-back" onClick={onClose} style={{ width: '100%', border: 'none', background: 'transparent' }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─── LoginPage ───────────────────────────────────── */
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -378,6 +447,7 @@ const LoginPage: React.FC = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
 
   const {
     identifier: resetEmail,
@@ -443,7 +513,16 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="page-screen">
-      <TopBar />
+      <TopBar rightSlot={
+        <button 
+          type="button" 
+          onClick={() => setShowServerModal(true)} 
+          style={{ background: 'transparent', border: 'none', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}
+          aria-label="Configuración de Servidor"
+        >
+          <Settings size={20} />
+        </button>
+      } />
 
       <main className="auth-screen-body" role="main">
         <div className="auth-content">
@@ -502,6 +581,11 @@ const LoginPage: React.FC = () => {
         googleError={googleError}
         googleLoading={googleLoading}
         submitGoogleUsername={submitGoogleUsername}
+      />
+
+      <ServerConfigModal
+        isOpen={showServerModal}
+        onClose={() => setShowServerModal(false)}
       />
     </div>
   );

@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/recommendations` : `${window.location.origin}/api/recommendations`;
+import { getApiUrl } from './apiConfig';
+
+const API_URL = `${getApiUrl()}/recommendations`;
 
 export interface RecommendationParams {
     categories: string[];
